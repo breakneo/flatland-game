@@ -1,0 +1,207 @@
+:root {
+  --parchment: #f4eedb;
+  --parchment-dark: #e8dfc8;
+  --ink: #1a1611;
+  --ink-faint: #6e6456;
+  --brass: #8c6d3b;
+  --brass-light: #c8963e;
+  --crimson: #8b1e1e;
+  --accent-gold: #d4af37;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  background-color: var(--parchment);
+  color: var(--ink);
+  font-family: 'Cinzel', 'Baskerville', 'Georgia', serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  padding: 10px;
+  background-image: 
+    radial-gradient(circle at 50% 50%, rgba(200, 150, 62, 0.08) 0%, transparent 80%),
+    linear-gradient(rgba(26, 22, 17, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 22, 17, 0.03) 1px, transparent 1px);
+  background-size: 100% 100%, 20px 20px, 20px 20px;
+}
+
+.game-container {
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 3px double var(--brass);
+  background: var(--parchment-dark);
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(26, 22, 17, 0.2), inset 0 0 16px rgba(140, 109, 59, 0.15);
+  border-radius: 4px;
+}
+
+.header-banner {
+  text-align: center;
+  border-bottom: 2px solid var(--brass);
+  padding-bottom: 8px;
+}
+
+.header-banner h1 {
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.sub-title {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  background: rgba(244, 238, 219, 0.8);
+  border: 1px solid var(--brass);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--brass);
+  color: #fff;
+  font-weight: bold;
+  border-radius: 2px;
+}
+
+.viewports-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.viewport-panel {
+  position: relative;
+  background: var(--parchment);
+  border: 2px solid var(--ink);
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.panel-label {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: rgba(244, 238, 219, 0.9);
+  padding: 2px 6px;
+  border: 1px solid var(--brass);
+  pointer-events: none;
+  z-index: 2;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 200px;
+  background: #fdfaf2;
+}
+
+#subjective-canvas.pointland-mode {
+  background: #0d0c0a;
+}
+
+.narrative-box {
+  background: rgba(244, 238, 219, 0.95);
+  border: 1px solid var(--brass);
+  border-left: 4px solid var(--brass);
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  min-height: 48px;
+  font-style: italic;
+  color: var(--ink);
+}
+
+.controls-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.button-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+button {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 8px 16px;
+  background: var(--parchment);
+  color: var(--ink);
+  border: 1px solid var(--brass);
+  border-radius: 2px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease-in-out;
+}
+
+button:hover {
+  background: var(--brass-light);
+  color: #fff;
+}
+
+button:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+button.ascend-btn {
+  background: var(--brass);
+  color: #fff;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+button.ascend-btn:hover {
+  background: var(--accent-gold);
+  color: var(--ink);
+}
+
+.d-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(2, 40px);
+  gap: 4px;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.d-pad button {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.btn-up { grid-column: 2; grid-row: 1; }
+.btn-left { grid-column: 1; grid-row: 2; }
+.btn-down { grid-column: 2; grid-row: 2; }
+.btn-right { grid-column: 3; grid-row: 2; }

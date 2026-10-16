@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "build": "tsc"
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>平面国：双视窗空间哲学原型 | Flatland Prototype</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <div class="game-container">
+    <header class="header-banner">
+      <h1>FLATLAND · 平面国</h1>
+      <div class="sub-title">A Romance of Many Dimensions — 维多利亚铜版画双视窗</div>
+    </header>
+
+    <div class="status-bar">
+      <div>当前维度: <span id="dim-badge" class="badge">1D</span></div>
+      <div id="level-title">Lineland (线之国)</div>
+      <div>自由度: <span id="dof-label">X轴 (1 DOF)</span></div>
+    </div>
+
+    <div class="viewports-wrapper">
+      <!-- 3D 全知沙盘视窗 -->
+      <div class="viewport-panel">
+        <div class="panel-label">Omniscient 3D Sandbox · 全知俯瞰沙盘</div>
+        <canvas id="omniscient-canvas" width="600" height="220"></canvas>
+      </div>
+
+      <!-- 主观受限感官视窗 -->
+      <div class="viewport-panel">
+        <div class="panel-label">Subjective Perception · 主观受限视界</div>
+        <canvas id="subjective-canvas" width="600" height="220"></canvas>
+      </div>
+    </div>
+
+    <div id="narrative-box" class="narrative-box">
+      “在单一直线上，你只能看见前后的光点。红色的邻居封死了道路……除非你跳出这个维度。”
+    </div>
+
+    <div class="controls-panel">
+      <div class="d-pad">
+        <button id="btn-up" class="btn-up" title="前进 (W / ↑)">▲</button>
+        <button id="btn-left" class="btn-left" title="左转/左移 (A / ←)">◀</button>
+        <button id="btn-down" class="btn-down" title="后退 (S / ↓)">▼</button>
+        <button id="btn-right" class="btn-right" title="右转/右移 (D / →)">▶</button>
+      </div>
+
+      <div class="button-row">
+        <button id="btn-ascend" class="ascend-btn">突破维度 · ASCEND (Space)</button>
+        <button id="btn-next-level">下一关卡 · NEXT</button>
+        <button id="btn-reset">重置原点 · RESET</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
