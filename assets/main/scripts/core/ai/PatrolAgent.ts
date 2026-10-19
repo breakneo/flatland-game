@@ -1,0 +1,106 @@
+import {
+  Point2D,
+  IsoscelesTriangle,
+  checkSquareTriangleCollision,
+  getNearMissDistance,
+} from '../geometry/IsoscelesCollider';
+
+export class PatrolAgent {
+  private waypoints: Point2D[];
+  private currentWaypointIndex: number = 0;
+  private moveSpeed: number;
+  private pos: Point2D;
+  private heading: number = 0;
+  private triangle: IsoscelesTriangle;
+
+  constructor(waypoints: Point2D[], moveSpeed: number = 2.0) {
+    if (waypoints.length === 0) {
+      throw new Error('PatrolAgent requires at least one waypoint');
+    }
+    this.waypoints = [...waypoints];
+    this.moveSpeed = moveSpeed;
+    this.pos = { x: waypoints[0].x, y: waypoints[0].y };
+    this.currentWaypointIndex = waypoints.length > 1 ? 1 : 0;
+
+    this.triangle = this.calculateTriangle();
+  }
+
+  public get currentTriangle(): IsoscelesTriangle {
+    return this.triangle;
+  }
+
+  public get position(): Point2D {
+    return { ...this.pos };
+  }
+
+  private calculateTriangle(): IsoscelesTriangle {
+    const cos = Math.cos(this.heading);
+    const sin = Math.sin(this.heading);
+    const perpX = -sin;
+    const perpY = cos;
+
+    // Isosceles with sharp apex pointing in direction of movement
+    const apexLength = 1.2;
+    const baseDistance = 0.8;
+    const baseHalfWidth = 0.5;
+
+    const apex: Point2D = {
+      x: this.pos.x + cos * apexLength,
+      y: this.pos.y + sin * apexLength,
+    };
+
+    const baseCenterX = this.pos.x - cos * baseDistance;
+    const baseCenterY = this.pos.y - sin * baseDistance;
+
+    const baseLeft: Point2D = {
+      x: baseCenterX + perpX * baseHalfWidth,
+      y: baseCenterY + perpY * baseHalfWidth,
+    };
+
+    const baseRight: Point2D = {
+      x: baseCenterX - perpX * baseHalfWidth,
+      y: baseCenterY - perpY * baseHalfWidth,
+    };
+
+    return {
+      apex,
+      baseLeft,
+      baseRight,
+      headingAngle: this.heading,
+    };
+  }
+
+  public update(
+    dt: number,
+    targetPos: Point2D,
+    isTargetAscended: boolean
+  ): { isColliding: boolean; isNearMiss: boolean } {
+    const targetWp = this.waypoints[this.currentWaypointIndex];
+    const dx = targetWp.x - this.pos.x;
+    const dy = targetWp.y - this.pos.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > 1e-4) {
+      this.heading = Math.atan2(dy, dx);
+      const step = Math.min(dist, this.moveSpeed * dt);
+      this.pos.x += (dx / dist) * step;
+      this.pos.y += (dy / dist) * step;
+
+      if (dist - step <= 0.05) {
+        this.currentWaypointIndex = (this.currentWaypointIndex + 1) % this.waypoints.length;
+      }
+    }
+
+    this.triangle = this.calculateTriangle();
+
+    if (isTargetAscended) {
+      return { isColliding: false, isNearMiss: false };
+    }
+
+    const isColliding = checkSquareTriangleCollision(targetPos, 1.0, this.triangle);
+    const nearMissDist = getNearMissDistance(targetPos, this.triangle);
+    const isNearMiss = !isColliding && nearMissDist <= 1.5;
+
+    return { isColliding, isNearMiss };
+  }
+}
