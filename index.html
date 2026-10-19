@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>平面国：正方形的迷雾救赎</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <div class="mobile-frame" id="game-frame">
+    <!-- 顶部信息栏 10% -->
+    <header class="header-bar">
+      <div class="chapter-title" id="chapter-title">第一幕·石牢脱逃</div>
+      <div class="oracle-gauge-wrapper">
+        <span>神谕刻度:</span>
+        <div class="mercury-tube">
+          <div class="mercury-level" id="mercury-bar"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 上半部 35%：全知神谕沙盘 -->
+    <div class="viewport-panel omni-viewport">
+      <div class="panel-tag">全知神谕沙盘 · 三维轴测</div>
+      <canvas id="omni-canvas" width="420" height="280"></canvas>
+    </div>
+
+    <!-- 中部 5%：维多利亚手稿独白条 -->
+    <div class="dialogue-strip" id="dialogue-strip">
+      “四面高墙将你锁在平面，何不抬头？”
+    </div>
+
+    <!-- 下半部 35%：肉身迷雾受限视界 -->
+    <div class="viewport-panel subj-viewport">
+      <div class="panel-tag">肉身受限感官 · 雾中辨角</div>
+      <canvas id="subj-canvas" width="420" height="270"></canvas>
+    </div>
+
+    <!-- 底部操作区 15% -->
+    <footer class="controls-dock">
+      <div class="d-pad">
+        <button id="btn-up" class="btn-up">▲</button>
+        <button id="btn-left" class="btn-left">◀</button>
+        <button id="btn-down" class="btn-down">▼</button>
+        <button id="btn-right" class="btn-right">▶</button>
+      </div>
+
+      <button id="btn-ascend" class="btn-ascend">
+        <span>向上，而不是向北</span>
+        <small style="font-size: 0.68rem; font-weight: normal;">(升维跃迁)</small>
+      </button>
+    </footer>
+
+    <!-- 结算手稿弹窗 -->
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="manuscript-card">
+        <div class="manuscript-title" id="modal-title">手稿结算</div>
+        <div class="manuscript-body" id="modal-body"></div>
+        <button class="btn-restart" id="btn-modal-action">再启轮回</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

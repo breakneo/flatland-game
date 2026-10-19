@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Cocos Creator game project derived from Game-Studio",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
