@@ -406,15 +406,13 @@ function renderLinelandOmniView(): void {
     omniCtx.stroke();
   }
 
-  // 直线两端哲学边界
-  omniCtx.font = '9px serif';
-  omniCtx.fillStyle = '#64748b';
-  omniCtx.textAlign = 'left';
-  omniCtx.fillText('【左下：暴躁后方】', pStart.x - 10, pStart.y + 18);
+  // 直线终点王国边界
+  omniCtx.font = '10px serif';
+  omniCtx.fillStyle = '#7a6344';
   omniCtx.textAlign = 'right';
-  omniCtx.fillText('【右上：王国极境】', pEnd.x + 10, pEnd.y - 12);
+  omniCtx.fillText('王国极境', pEnd.x + 8, pEnd.y - 10);
 
-  // 2. 暴躁邻人：原著设定为【质点】（位于左下）
+  // 2. 暴躁邻人（位于左下）
   const nbrPt = toScreen(lineland.neighbor.x, 0);
   const time = Date.now() / 400;
 
@@ -447,9 +445,9 @@ function renderLinelandOmniView(): void {
   omniCtx.font = 'bold 10px serif';
   omniCtx.fillStyle = '#8b1e1e';
   omniCtx.textAlign = 'center';
-  omniCtx.fillText('【暴躁邻人 · 质点】', nbrPt.x - v.x * 16, nbrPt.y - v.y * 16);
+  omniCtx.fillText('暴躁邻人', nbrPt.x - v.x * 16, nbrPt.y - v.y * 16);
 
-  // 3. 线之国王：原著设定为【漫长尊贵线段】（位于右上）
+  // 3. 线之国王（位于右上）
   const kStart = toScreen(lineland.king.startX, 0);
   const kEnd = toScreen(lineland.king.endX, 0);
 
@@ -502,7 +500,7 @@ function renderLinelandOmniView(): void {
   omniCtx.font = 'bold 10px serif';
   omniCtx.fillStyle = '#7a5214';
   omniCtx.textAlign = 'center';
-  omniCtx.fillText('【线之国王 · 长线段】', kMid.x + v.x * 16, kMid.y + v.y * 16);
+  omniCtx.fillText('线之国王', kMid.x + v.x * 16, kMid.y + v.y * 16);
 
   // 4. 梦境裂隙（出口）
   const exitPt = toScreen(lineland.exitX, 0);
@@ -519,7 +517,7 @@ function renderLinelandOmniView(): void {
   omniCtx.font = 'bold 10px serif';
   omniCtx.fillStyle = '#b38022';
   omniCtx.textAlign = 'center';
-  omniCtx.fillText('【梦境裂隙】', exitPt.x + v.x * 20, exitPt.y + v.y * 20);
+  omniCtx.fillText('梦境裂隙', exitPt.x + v.x * 20, exitPt.y + v.y * 20);
 
   // 5. 正方形绅士：原著设定在直线国呈现为【一条学者线段】
   const p1 = toScreen(lineland.player.x - lineland.player.length / 2, lineland.player.y);
@@ -577,9 +575,9 @@ function renderLinelandOmniView(): void {
   omniCtx.fillStyle = '#3e2c14';
   omniCtx.textAlign = 'center';
   if (lineland.isSidestepping) {
-    omniCtx.fillText('【学者线段 · 跨越一维】', pMid.x - v.x * 16, pMid.y - v.y * 16);
+    omniCtx.fillText('正方形绅士 · 跨越一维', pMid.x - v.x * 16, pMid.y - v.y * 16);
   } else {
-    omniCtx.fillText('【学者线段】', pMid.x - v.x * 16, pMid.y - v.y * 16);
+    omniCtx.fillText('正方形绅士', pMid.x - v.x * 16, pMid.y - v.y * 16);
   }
 }
 
@@ -670,11 +668,11 @@ function renderLinelandSubjView(): void {
   } else if (linelandLookDir === 'FORWARD') {
     subjCtx.fillStyle = 'rgba(212, 175, 55, 0.9)';
     const distToKing = (lineland.king.startX - (lineland.player.x + lineland.player.length / 2)).toFixed(1);
-    subjCtx.fillText(`【一维前沿正视】正视线之国王长线段之金辉 (前距: ${distToKing})`, centerX, h - 14);
+    subjCtx.fillText(`【一维前沿正视】正视线之国王之金辉 (前距: ${distToKing})`, centerX, h - 14);
   } else {
     subjCtx.fillStyle = 'rgba(244, 63, 94, 0.9)';
     const distToNbr = ((lineland.player.x - lineland.player.length / 2) - lineland.neighbor.x).toFixed(1);
-    subjCtx.fillText(`【一维后沿回视】回视暴躁邻人质点之暗红针芒 (后距: ${distToNbr})`, centerX, h - 14);
+    subjCtx.fillText(`【一维后沿回视】回视暴躁邻人之暗红针芒 (后距: ${distToNbr})`, centerX, h - 14);
   }
 }
 
