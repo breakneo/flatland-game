@@ -12,7 +12,7 @@ export class EscapeGameController {
     x: -4.8,
     y: 0,
     angle: 0,
-    size: 1.0,
+    size: 1.2,
   };
 
   public walls: WallSegment[] = [
@@ -101,7 +101,7 @@ export class EscapeGameController {
 
   public reset(): void {
     this.gameState = 'PLAYING';
-    this.player = { x: -4.8, y: 0, angle: 0, size: 1.0 };
+    this.player = { x: -4.8, y: 0, angle: 0, size: 1.2 };
     this.ascensionFSM = new AscensionFSM();
     this.juice = new JuiceController();
     this.nearMissCooldown = 0;

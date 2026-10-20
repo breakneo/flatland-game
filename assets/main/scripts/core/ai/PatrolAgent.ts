@@ -60,10 +60,10 @@ export class PatrolAgent {
     const perpX = -sin;
     const perpY = cos;
 
-    // Isosceles with sharp apex pointing in direction of movement
-    const apexLength = 1.2;
-    const baseDistance = 0.8;
-    const baseHalfWidth = 0.5;
+    // 原著精准身材：底边极窄（全宽 0.38），身躯狭长如长矛毒刺（长 2.4），顶角小于 10 度
+    const apexLength = 1.8;
+    const baseDistance = 0.6;
+    const baseHalfWidth = 0.19;
 
     const apex: Point2D = {
       x: this.pos.x + cos * apexLength,
