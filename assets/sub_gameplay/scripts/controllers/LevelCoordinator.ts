@@ -1,6 +1,6 @@
 import { LinelandGameController } from './LinelandGameController';
 import { EscapeGameController } from './EscapeGameController';
-import { PurgeGameController } from './PurgeGameController';
+import { SpacelandGameController } from './SpacelandGameController';
 
 export enum GameLevelId {
   LINELAND_PROLOGUE = 0,
@@ -36,11 +36,11 @@ export const LEVEL_CONFIGS: Record<GameLevelId, LevelConfig> = {
   },
   [GameLevelId.SPACELAND_PURGE]: {
     id: GameLevelId.SPACELAND_PURGE,
-    title: '第二幕 · 议会大清洗',
-    dimensionBadge: '高维接引',
-    identityText: '【第二幕】议会大清洗',
-    omniTag: '全知沙盘 · 议会街区戒严网格',
-    subjTag: '肉身感官 · 迷雾隐针与圣光圆域',
+    title: '第二幕 · 空间国与内脏全知',
+    dimensionBadge: '升维启蒙',
+    identityText: '【第二幕】空间国启蒙',
+    omniTag: '全知沙盘 · 反锁书房与球体三维穿透',
+    subjTag: '肉身感官 · 动态截面与三维俯瞰全透视',
   },
 };
 
@@ -48,13 +48,18 @@ export class LevelCoordinator {
   public currentLevelId: GameLevelId = GameLevelId.LINELAND_PROLOGUE;
   public lineland: LinelandGameController;
   public escape: EscapeGameController;
-  public purge: PurgeGameController;
+  public spaceland: SpacelandGameController;
   public isLevelCompleted: boolean = false;
 
   constructor() {
     this.lineland = new LinelandGameController();
     this.escape = new EscapeGameController();
-    this.purge = new PurgeGameController();
+    this.spaceland = new SpacelandGameController();
+  }
+
+  // 向后兼容别名
+  public get purge(): SpacelandGameController {
+    return this.spaceland;
   }
 
   public get currentLevelConfig(): LevelConfig {
@@ -73,8 +78,8 @@ export class LevelCoordinator {
         this.isLevelCompleted = true;
       }
     } else if (this.currentLevelId === GameLevelId.SPACELAND_PURGE) {
-      this.purge.update(dt);
-      if (this.purge.gameState === 'VICTORY') {
+      this.spaceland.update(dt);
+      if (this.spaceland.gameState === 'VICTORY') {
         this.isLevelCompleted = true;
       }
     }
@@ -95,9 +100,9 @@ export class LevelCoordinator {
       };
     } else {
       return {
-        title: '【第二幕背景】议会大清洗',
-        body: '你打破了石牢的二维死锁，然而整座平面国首都议会早已进入最高戒严状态。\n\n最高圆形理事会签发了严酷的议会清洗令，搜捕一切涉嫌传播“三维福音”的异端。议会外围五边形街道被严密封锁，近乎无形、致命穿刺的针形女性刺客在迷雾中高速巡弋，大祭司的圣光笼罩中庭。\n\n普通平面移动已无法脱离天罗地网。唯有搜集球体导师降下的3枚高维符印，彻底踏上飞跃平面的通往虚空法阵！',
-        btnText: '突围飞升',
+        title: '【第二幕背景】球体降临与反锁密室',
+        body: '新千年除夕的深夜，你独自在书房静思。门窗皆如往常般反锁闭合，书房中央锁着装有绝密手稿的坚固铁箱。\n\n突然，一道来自虚空的声音在封闭书房内响起！一个诡异的圆凭空在你的地平面上诞生，并随心所欲地忽大忽小。\n\n“我不是巫师，”那圆说，“我是来自三维空间国的球体。哪怕平面国议会下达最严酷的血洗禁令，也阻挡不了维度的真理——在你所谓反锁的书房与铁箱中，从上方看根本没有屋顶！”',
+        btnText: '目睹神迹',
       };
     }
   }
@@ -113,12 +118,12 @@ export class LevelCoordinator {
       return {
         title: '【维度觉醒】密室的虚妄',
         body: '“四面石壁封闭了世间所有的二维方向——向东、向西、向南、向北，皆是绝路。唯有遵从球体先知的神谕，向上跃入虚空，方知所谓坚不可摧的牢房，不过是虚妄的一张薄纸。\n\n你已打破平面的桎梏，高维宇宙的真理正向你敞开大门。”',
-        nextBtnText: '进入第二幕 · 议会大清洗',
+        nextBtnText: '进入第二幕 · 空间国与内脏全知',
       };
     } else {
       return {
-        title: '【高维飞升】超脱二维之渊',
-        body: '“在引渡法阵启动的一瞬间，球体导师将你从二维纸面彻底拔向苍穹！\n\n你第一次真正看到了整座平面国的全貌——房屋的内室、行人的五脏六腑、议会大厦的宏伟轮廓，在此刻毫无保留地呈现在你的眼底。平面国永恒的傲慢与偏见，在浩瀚无垠的三维虚空面前沦为微不足道的尘埃。”',
+        title: '【三维福音】内脏与全透视之震撼',
+        body: '“球体将你一把拔出了平面国！\n\n一瞬间，你感到了一种从未有过的视力剧震——原本狭窄微薄的一维视线，轰然展开为浩瀚无垠的广袤平面！\n\n你俯瞰着整座平面国：紧锁的房门不复存在，你可以同时看清每一个房间的内室；最令你惊骇的是，你看到了同胞们从未示人的内部——他们的肠胃、心脏与几何骨架，在你的眼底毫无保留地搏动！\n\n这就是第三维度的全知——唯有跳出平面，方知内部与外部的虚妄！”',
         nextBtnText: '重温三维奇迹',
       };
     }
@@ -132,7 +137,7 @@ export class LevelCoordinator {
     } else if (this.currentLevelId === GameLevelId.FLATLAND_ESCAPE) {
       this.currentLevelId = GameLevelId.SPACELAND_PURGE;
       this.isLevelCompleted = false;
-      this.purge.reset();
+      this.spaceland.reset();
     } else {
       this.resetCurrentLevel();
     }
@@ -151,7 +156,7 @@ export class LevelCoordinator {
     } else if (this.currentLevelId === GameLevelId.FLATLAND_ESCAPE) {
       this.escape.reset();
     } else {
-      this.purge.reset();
+      this.spaceland.reset();
     }
   }
 }
