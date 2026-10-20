@@ -32,9 +32,9 @@ body {
 
 .mobile-frame {
   width: 100%;
-  max-width: 414px;
+  max-width: 440px;
   height: 96vh;
-  max-height: 860px;
+  max-height: 880px;
   background-color: var(--parchment);
   border: 3px double var(--brass);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(140, 109, 59, 0.2);
@@ -189,13 +189,14 @@ canvas {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 12px;
+  gap: 6px;
 }
 
 .d-pad {
   display: grid;
-  grid-template-columns: repeat(3, 34px);
-  grid-template-rows: repeat(2, 30px);
+  grid-template-columns: repeat(3, 32px);
+  grid-template-rows: repeat(2, 28px);
   gap: 3px;
 }
 
@@ -203,7 +204,7 @@ canvas {
   background: var(--parchment);
   border: 1px solid var(--brass);
   color: var(--ink);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -220,6 +221,51 @@ canvas {
 .btn-left { grid-column: 1; grid-row: 2; }
 .btn-down { grid-column: 2; grid-row: 2; }
 .btn-right { grid-column: 3; grid-row: 2; }
+
+/* 三维空间国高程调控台 */
+.altitude-dock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: rgba(244, 238, 219, 0.7);
+  border: 1px solid var(--brass);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+
+.altitude-title {
+  font-size: 0.65rem;
+  font-weight: bold;
+  color: var(--brass);
+  letter-spacing: 0.5px;
+}
+
+.altitude-btn-group {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-elev {
+  background: var(--parchment);
+  border: 1px solid var(--brass);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 4px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn-elev:hover, .btn-elev:active {
+  background: var(--brass-light);
+  color: #fff;
+  box-shadow: 0 0 6px var(--gold);
+}
 
 /* 升维核心大按键 */
 .btn-ascend {

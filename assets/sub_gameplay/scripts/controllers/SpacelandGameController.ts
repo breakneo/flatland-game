@@ -58,6 +58,20 @@ function rayCircleIntersect(
   return null;
 }
 
+export interface SpacelandCitizen {
+  id: string;
+  type: 'triangle' | 'isosceles' | 'square';
+  name: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  minPos: number;
+  maxPos: number;
+  axis: 'x' | 'y';
+  organPulsePhase: number;
+}
+
 export class SpacelandGameController {
   public gameState: 'PLAYING' | 'VICTORY' | 'DEFEATED' = 'PLAYING';
   public phase: SpacelandPhase = 'CROSS_SECTION';
@@ -65,7 +79,7 @@ export class SpacelandGameController {
   public player = {
     x: -2.0,
     y: 0,
-    angle: 0, // 面向正东 (+X 方向，朝向前方的密闭铁箱)
+    angle: 0, // 面向正东 (+X 方向，朝向前方密闭铁箱)
     size: 1.2,
   };
 
@@ -99,6 +113,54 @@ export class SpacelandGameController {
   };
 
   public altitude: number = 0;
+  public minAltitude: number = 0.6;
+  public maxAltitude: number = 12.0;
+  public isAutoAscending: boolean = true;
+  public isDetaching: boolean = false;
+  public detachProgress: number = 0;
+
+  public citizens: SpacelandCitizen[] = [
+    {
+      id: 'noble_triangle',
+      type: 'triangle',
+      name: '等边三角形绅士',
+      x: -1.5,
+      y: 4.8,
+      vx: 1.3,
+      vy: 0,
+      minPos: -4.5,
+      maxPos: 4.5,
+      axis: 'x',
+      organPulsePhase: 0,
+    },
+    {
+      id: 'guard_isosceles',
+      type: 'isosceles',
+      name: '等腰宪兵',
+      x: -5.6,
+      y: -1.5,
+      vx: 0,
+      vy: 1.5,
+      minPos: -3.8,
+      maxPos: 3.8,
+      axis: 'y',
+      organPulsePhase: 1.8,
+    },
+    {
+      id: 'scholar_square',
+      type: 'square',
+      name: '正方形同僚',
+      x: 5.6,
+      y: 1.0,
+      vx: 0,
+      vy: -1.2,
+      minPos: -3.5,
+      maxPos: 3.5,
+      axis: 'y',
+      organPulsePhase: 3.2,
+    },
+  ];
+
   public hasRetrievedManuscript: boolean = false;
   public soliloquy: string = '“反锁密闭的书房中，为何凭空出现了一个忽大忽小的圆？”';
 
@@ -115,6 +177,12 @@ export class SpacelandGameController {
 
   public get currentZ(): number {
     return this.altitude;
+  }
+
+  public changeAltitude(deltaZ: number): void {
+    if (!this.isAscended) return;
+    this.isAutoAscending = false;
+    this.altitude = Math.max(this.minAltitude, Math.min(this.maxAltitude, this.altitude + deltaZ));
   }
 
   // 计算球体穿透二维地平面时产生的圆截面半径 r = sqrt(R^2 - z^2)
@@ -141,10 +209,41 @@ export class SpacelandGameController {
       }
     }
 
-    // 2. 空间国飞升阶段：Z 轴高度平滑攀升至 5.0
+    // 2. 空间国飞升阶段：Z 轴高度平滑攀升至初始高维，支持玩家随时上下微调
     if (this.phase === 'ASCENDED') {
-      if (this.altitude < 5.0) {
-        this.altitude = Math.min(5.0, this.altitude + 2.2 * dt);
+      if (this.isDetaching) {
+        this.detachProgress = Math.min(1.0, this.detachProgress + dt * 1.6);
+        if (this.detachProgress >= 1.0) {
+          this.isDetaching = false;
+        }
+      }
+
+      if (this.isAutoAscending && this.altitude < 4.8) {
+        this.altitude = Math.min(4.8, this.altitude + 2.5 * dt);
+      }
+    }
+
+    // 3. 更新室外同胞几何走动与心脏节律
+    for (const c of this.citizens) {
+      c.organPulsePhase += dt * 4.5;
+      if (c.axis === 'x') {
+        c.x += c.vx * dt;
+        if (c.x > c.maxPos) {
+          c.x = c.maxPos;
+          c.vx = -Math.abs(c.vx);
+        } else if (c.x < c.minPos) {
+          c.x = c.minPos;
+          c.vx = Math.abs(c.vx);
+        }
+      } else {
+        c.y += c.vy * dt;
+        if (c.y > c.maxPos) {
+          c.y = c.maxPos;
+          c.vy = -Math.abs(c.vy);
+        } else if (c.y < c.minPos) {
+          c.y = c.minPos;
+          c.vy = Math.abs(c.vy);
+        }
       }
     }
   }
@@ -217,13 +316,16 @@ export class SpacelandGameController {
   public triggerAscend(): boolean {
     if (!this.hasRetrievedManuscript) return false;
     this.phase = 'ASCENDED';
-    this.altitude = 0.2;
-    this.soliloquy = '“【空间国引渡】天地骤暗，随后整座平面国如一张薄纸展现在你的脚下！”';
-    this.juice.addTrauma(0.5);
+    this.isDetaching = true;
+    this.detachProgress = 0;
+    this.isAutoAscending = true;
+    this.altitude = 0.3;
+    this.soliloquy = '“【空间国引渡】球体抓住正方形：‘既然言语无法启蒙你，我便带你亲自进入空间国！’ 天地骤暗，你被硬生生剥离了二维纸面！”';
+    this.juice.addTrauma(0.8);
     return true;
   }
 
-  // 完成三维全知启蒙
+  // 完成三维全知启发
   public completeEnlightenment(): void {
     if (this.phase === 'ASCENDED' && this.altitude >= 3.5) {
       this.gameState = 'VICTORY';
@@ -239,6 +341,9 @@ export class SpacelandGameController {
     this.sphere.z = 0;
     this.sphere.dirZ = 1;
     this.altitude = 0;
+    this.isAutoAscending = true;
+    this.isDetaching = false;
+    this.detachProgress = 0;
     this.hasRetrievedManuscript = false;
     this.soliloquy = '“反锁密闭的书房中，为何凭空出现了一个忽大忽小的圆？”';
     this.juice = new JuiceController();

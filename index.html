@@ -29,7 +29,7 @@
     <!-- 上半部 35%：全知神谕沙盘 -->
     <div class="viewport-panel omni-viewport" id="omni-viewport">
       <div class="panel-tag" id="omni-panel-tag">全知沙盘 · 单一直线世界剖面</div>
-      <canvas id="omni-canvas" width="420" height="280"></canvas>
+      <canvas id="omni-canvas" width="440" height="300"></canvas>
     </div>
 
     <!-- 中部 5%：维多利亚手稿独白条 -->
@@ -40,16 +40,25 @@
     <!-- 下半部 35%：肉身迷雾受限视界 -->
     <div class="viewport-panel subj-viewport" id="subj-viewport">
       <div class="panel-tag" id="subj-panel-tag">肉身感官 · 纯一维中心视网膜</div>
-      <canvas id="subj-canvas" width="420" height="270"></canvas>
+      <canvas id="subj-canvas" width="440" height="290"></canvas>
     </div>
 
-    <!-- 底部操作区 15% -->
+    <!-- 底部操作区 14% -->
     <footer class="controls-dock">
       <div class="d-pad">
         <button id="btn-up" class="btn-up">▲</button>
         <button id="btn-left" class="btn-left">◀</button>
         <button id="btn-down" class="btn-down">▼</button>
         <button id="btn-right" class="btn-right">▶</button>
+      </div>
+
+      <!-- 三维空间国高程调控台 (Altitude Dock) -->
+      <div class="altitude-dock" id="altitude-dock" style="display: none;">
+        <div class="altitude-title" id="altitude-title">高程: 0.0</div>
+        <div class="altitude-btn-group">
+          <button id="btn-elev-up" class="btn-elev" title="升至更高三维海拔 (键盘 E 或滚轮向上)">▲ 升高 (E)</button>
+          <button id="btn-elev-down" class="btn-elev" title="降至近地三维海拔 (键盘 Q 或滚轮向下)">▼ 降低 (Q)</button>
+        </div>
       </div>
 
       <button id="btn-ascend" class="btn-ascend btn-sealed">
