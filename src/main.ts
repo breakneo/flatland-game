@@ -1289,8 +1289,8 @@ function project3DDownward(
   const dy = wy - camY;
 
   // 根据相机的偏航朝向角 (Yaw = camAngle) 旋转视野，支持按 A/D 键自由左右转头环视！
-  const cosA = Math.cos(-camAngle);
-  const sinA = Math.sin(-camAngle);
+  const cosA = Math.cos(camAngle);
+  const sinA = Math.sin(camAngle);
   const rx = dx * cosA - dy * sinA;
   const ry = dx * sinA + dy * cosA;
 
@@ -1678,7 +1678,7 @@ function renderSpacelandOmniView(): void {
       // 半透明几何晶体外壳（根据相机朝向旋转渲染）
       omniCtx.save();
       omniCtx.translate(cp.x, cp.y);
-      omniCtx.rotate(-camAngle);
+      omniCtx.rotate(camAngle);
 
       omniCtx.strokeStyle = 'rgba(226, 232, 240, 0.85)';
       omniCtx.fillStyle = 'rgba(255, 255, 255, 0.26)';

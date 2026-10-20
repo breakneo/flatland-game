@@ -342,8 +342,14 @@ export class SpacelandGameController {
 
     this.player.angle += turn * 2.5 * dt;
     const speed = this.isAscended ? 5.5 : 3.8;
-    const dx = Math.cos(this.player.angle) * forward * speed * dt;
-    const dy = Math.sin(this.player.angle) * forward * speed * dt;
+
+    // 屏幕上方为正北(+Y方向)，屏幕右方为正东(+X方向)
+    // angle = 0 时视线面向屏幕正上方(正北)：
+    // W (forward > 0): 沿视线向前移动 -> 屏幕笔直向上 (+Y 方向)
+    // S (forward < 0): 沿视线向后移动 -> 屏幕笔直向下 (-Y 方向)
+    // A (turn < 0) / D (turn > 0): 左右旋转偏航角
+    const dx = Math.sin(this.player.angle) * forward * speed * dt;
+    const dy = Math.cos(this.player.angle) * forward * speed * dt;
 
     const nextX = this.player.x + dx;
     const nextY = this.player.y + dy;

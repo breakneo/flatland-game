@@ -90,4 +90,26 @@ describe('SpacelandGameController (第二幕·空间国启蒙与内脏全知纯�
     rays = controller.castRays(30);
     expect(rays[15].hitType).toBe('wall');
   });
+
+  it('俯视操控：W/S 沿视线垂直上下前进后退，A/D 旋转朝向', () => {
+    controller.altitude = 4.0; // 升维状态
+    controller.player.x = 0;
+    controller.player.y = 0;
+    controller.player.angle = 0; // 面向屏幕正上方(正北)
+
+    // 按 W 前进：应严格沿 +Y 方向(向上)移动，X 轴保持为 0
+    controller.movePlayer(1, 0, 0.1);
+    expect(controller.player.x).toBeCloseTo(0, 4);
+    expect(controller.player.y).toBeGreaterThan(0);
+
+    // 按 S 后退：应严格沿 -Y 方向(向下)移动
+    const prevY = controller.player.y;
+    controller.movePlayer(-1, 0, 0.1);
+    expect(controller.player.x).toBeCloseTo(0, 4);
+    expect(controller.player.y).toBeLessThan(prevY);
+
+    // 按 A/D 旋转角度
+    controller.movePlayer(0, 1, 0.1); // turn > 0
+    expect(controller.player.angle).toBeGreaterThan(0);
+  });
 });
