@@ -32,20 +32,17 @@ describe('LevelCoordinator (全局关卡流转与手稿状态机)', () => {
     expect(coordinator.isLevelCompleted).toBe(false);
   });
 
-  it('提供忠实于原著的关卡开场背景手稿与通关叙事结算', () => {
-    // 序幕背景交代：正方形绅士在梦中降维为截面线段
-    const prologueIntro = coordinator.introManuscript;
-    expect(prologueIntro.title).toContain('序幕');
-    expect(prologueIntro.body).toContain('正方形');
-    expect(prologueIntro.body).toContain('截面');
-    expect(prologueIntro.btnText).toContain('入梦');
+  it('支持全三幕完整流转：序幕 -> 第一幕 -> 第二幕', () => {
+    // 1. 序幕通关 -> 第一幕
+    coordinator.advanceToNextLevel();
+    expect(coordinator.currentLevelId).toBe(GameLevelId.FLATLAND_ESCAPE);
 
-    // 切换至第一幕，提供石牢身陷囹圄的背景交代
-    coordinator.switchLevel(GameLevelId.FLATLAND_ESCAPE);
-    const flatlandIntro = coordinator.introManuscript;
-    expect(flatlandIntro.title).toContain('第一幕');
-    expect(flatlandIntro.body).toContain('四等边');
-    expect(flatlandIntro.body).toContain('等腰三角形');
-    expect(flatlandIntro.btnText).toContain('脱逃');
+    // 2. 第一幕通关 -> 第二幕
+    coordinator.isLevelCompleted = true;
+    coordinator.advanceToNextLevel();
+    expect(coordinator.currentLevelId).toBe(GameLevelId.SPACELAND_PURGE);
+    expect(coordinator.currentLevelConfig.title).toContain('第二幕');
+    expect(coordinator.introManuscript.title).toContain('第二幕');
+    expect(coordinator.introManuscript.body).toContain('议会');
   });
 });

@@ -33,6 +33,7 @@ const btnRight = document.getElementById('btn-right')!;
 const coordinator = new LevelCoordinator();
 const lineland = coordinator.lineland;
 const escapeGame = coordinator.escape;
+const purgeGame = coordinator.purge;
 
 // 直线国第一人称当前视线朝向：FORWARD(前视国王) | BACKWARD(后视邻人)
 let linelandLookDir: 'FORWARD' | 'BACKWARD' = 'FORWARD';
@@ -127,12 +128,19 @@ function handleSpecialAction(): void {
     } else {
       dialogueStrip.textContent = '“尚未探明前后绝路！请先按 W 前进并按 S 后退以觉醒侧向感知！”';
     }
-  } else {
+  } else if (coordinator.currentLevelId === GameLevelId.FLATLAND_ESCAPE) {
     const success = escapeGame.requestAscension();
     if (success) {
       dialogueStrip.textContent = '“【真言爆发】正方形拔地而起，俯瞰凡俗四壁！”';
     } else {
       dialogueStrip.textContent = '“心智尚未充盈！需探寻集齐 3 枚神谕残片方可升维！”';
+    }
+  } else {
+    const success = purgeGame.requestAscension();
+    if (success) {
+      dialogueStrip.textContent = '“【高维飞跃】球体导师神光护体！你超脱二维议会街区，翱翔于虚空之上！”';
+    } else {
+      dialogueStrip.textContent = '“虚空灵力不足！需在五边形街道避开针刺并搜集全部 3 枚符印方可飞升！”';
     }
   }
 }
@@ -161,15 +169,15 @@ function resetCurrentLevel(): void {
   updateLevelHeaderUI();
   if (coordinator.currentLevelId === GameLevelId.LINELAND_PROLOGUE) {
     dialogueStrip.textContent = lineland.soliloquy;
-  } else {
+  } else if (coordinator.currentLevelId === GameLevelId.FLATLAND_ESCAPE) {
     dialogueStrip.textContent = '“【正方形绅士】四面封闭石墙将你闭锁。请前行拾取神谕金印！”';
+  } else {
+    dialogueStrip.textContent = '“【正方形绅士】议会戒严！小心隐形针刺与祭司圣光，搜集3枚符印飞升！”';
   }
 }
 
 function toggleLevel(): void {
-  const nextId = coordinator.currentLevelId === GameLevelId.LINELAND_PROLOGUE
-    ? GameLevelId.FLATLAND_ESCAPE
-    : GameLevelId.LINELAND_PROLOGUE;
+  const nextId = ((coordinator.currentLevelId + 1) % 3) as GameLevelId;
   coordinator.switchLevel(nextId);
   resetCurrentLevel();
   showIntroManuscript();
@@ -303,7 +311,7 @@ function gameLoop(now: number): void {
     renderLinelandOmniView();
     renderLinelandSubjView();
 
-  } else {
+  } else if (coordinator.currentLevelId === GameLevelId.FLATLAND_ESCAPE) {
     // -------------------------------------------------------------
     // 第一幕：平面国石牢脱逃逻辑更新
     // -------------------------------------------------------------
@@ -370,6 +378,75 @@ function gameLoop(now: number): void {
 
     renderOmniscientView();
     renderSubjectiveFogView();
+
+  } else {
+    // -------------------------------------------------------------
+    // 第二幕：议会大清洗逻辑更新（针形刺客、圆形祭司与高维飞升）
+    // -------------------------------------------------------------
+    if (currentModalMode === 'NONE') {
+      purgeGame.movePlayer(forward, turn, dt);
+    }
+
+    // 收集高维接引符印
+    for (let i = 0; i < purgeGame.tokens.length; i++) {
+      const t = purgeGame.tokens[i];
+      if (!t.collected) {
+        const d = Math.hypot(purgeGame.player.x - t.x, purgeGame.player.y - t.y);
+        if (d < 1.3) {
+          t.collected = true;
+          purgeGame.energy = Math.min(100, purgeGame.energy + 35);
+          if (i === 0) {
+            dialogueStrip.textContent = '“【虚空真印】五边形街道锁不住更高维度的法则！”';
+          } else if (i === 1) {
+            dialogueStrip.textContent = '“【圣光破妄】圆形祭司的虚妄光环在天界真理前微不足道！”';
+          } else {
+            dialogueStrip.textContent = '“【高维接引】符印已齐！立即按空格键或点击右下角飞升跃过封锁！”';
+          }
+        }
+      }
+    }
+
+    purgeGame.update(dt);
+
+    gaugeLabel.textContent = '符印:';
+    mercuryBar.style.width = `${purgeGame.energy}%`;
+    if (purgeGame.isAscended) {
+      btnAscend.classList.remove('btn-sealed');
+      btnAscend.classList.add('charged');
+      btnAscendText.textContent = '翱翔虚空中';
+      btnAscendSub.textContent = '(飞跃议会 · 奔向法阵)';
+    } else if (purgeGame.energy >= 100) {
+      btnAscend.classList.remove('btn-sealed');
+      btnAscend.classList.add('charged');
+      btnAscendText.textContent = '突破议会戒严';
+      btnAscendSub.textContent = '(符印充盈 · 腾空飞跃)';
+    } else {
+      btnAscend.classList.add('btn-sealed');
+      btnAscend.classList.remove('charged');
+      btnAscendText.textContent = '搜集符印中';
+      btnAscendSub.textContent = `(集符印: ${Math.round(purgeGame.energy)}%)`;
+    }
+
+    if (purgeGame.gameState === 'VICTORY' && !modalOverlay.classList.contains('active')) {
+      currentModalMode = 'VICTORY';
+      modalOverlay.classList.add('active');
+      const ms = coordinator.completionManuscript;
+      modalTitle.textContent = ms.title;
+      modalBody.textContent = ms.body;
+      btnModalAction.textContent = ms.nextBtnText;
+    } else if (purgeGame.gameState === 'DEFEATED' && !modalOverlay.classList.contains('active')) {
+      currentModalMode = 'DEFEATED';
+      modalOverlay.classList.add('active');
+      modalTitle.textContent = '肉身破碎 · 针刺之殇';
+      modalBody.textContent = purgeGame.defeatManuscript;
+      btnModalAction.textContent = '重聚肉身';
+    }
+
+    const juiceFrame = purgeGame.juice.update(dt);
+    subjViewport.style.transform = `translate(${juiceFrame.offsetX}px, ${juiceFrame.offsetY}px)`;
+
+    renderPurgeOmniView();
+    renderPurgeSubjView();
   }
 
   requestAnimationFrame(gameLoop);
@@ -1038,6 +1115,462 @@ function renderSubjectiveFogView(): void {
   subjCtx.font = 'bold 11px serif';
   subjCtx.textAlign = 'center';
   subjCtx.fillText('【正方形平直前沿视界 · 方位 0°】', w / 2, h - 14);
+
+  subjCtx.font = '10px serif';
+  subjCtx.textAlign = 'left';
+  subjCtx.fillText('■ 左直角 90°', 12, h - 14);
+  subjCtx.textAlign = 'right';
+  subjCtx.fillText('右直角 90° ■', w - 12, h - 14);
+}
+
+// =========================================================================
+// 第二幕渲染：议会大清洗（戒严五边形街区 + 针形刺客 + 圆形大祭司 + 高维飞升）
+// =========================================================================
+function renderPurgeOmniView(): void {
+  const w = omniCanvas.width;
+  const h = omniCanvas.height;
+  omniCtx.clearRect(0, 0, w, h);
+
+  const cx = w / 2;
+  const cy = h / 2 + 25;
+  const scale = 14.8;
+
+  // 1. 古典羊皮纸底色
+  omniCtx.fillStyle = '#f8f4e8';
+  omniCtx.fillRect(0, 0, w, h);
+
+  // 2. 议会戒严街区外墙 [-5.8, 5.8] 与 [-3.4, 3.4]
+  const wallCorners = [
+    { x: -5.8, y: -3.4 },
+    { x: -5.8, y: 3.4 },
+    { x: 5.8, y: 3.4 },
+    { x: 5.8, y: -3.4 },
+  ];
+  const screenCorners = wallCorners.map(pt => {
+    const p = project3DtoIso({ x: pt.x, y: pt.y, z: 0 }, scale);
+    return { x: cx + p.screenX, y: cy + p.screenY };
+  });
+
+  // 街区地砖细密网格
+  omniCtx.strokeStyle = 'rgba(140, 109, 59, 0.12)';
+  omniCtx.lineWidth = 1;
+  for (let x = -5.0; x <= 5.0; x += 1.6) {
+    const p1 = project3DtoIso({ x, y: -3.4, z: 0 }, scale);
+    const p2 = project3DtoIso({ x, y: 3.4, z: 0 }, scale);
+    omniCtx.beginPath();
+    omniCtx.moveTo(cx + p1.screenX, cy + p1.screenY);
+    omniCtx.lineTo(cx + p2.screenX, cy + p2.screenY);
+    omniCtx.stroke();
+  }
+  for (let y = -3.0; y <= 3.0; y += 1.5) {
+    const p1 = project3DtoIso({ x: -5.8, y, z: 0 }, scale);
+    const p2 = project3DtoIso({ x: 5.8, y, z: 0 }, scale);
+    omniCtx.beginPath();
+    omniCtx.moveTo(cx + p1.screenX, cy + p1.screenY);
+    omniCtx.lineTo(cx + p2.screenX, cy + p2.screenY);
+    omniCtx.stroke();
+  }
+
+  // 绘制议会街区厚重外沿围墙
+  omniCtx.strokeStyle = '#1a1611';
+  omniCtx.lineWidth = 3.2;
+  omniCtx.beginPath();
+  omniCtx.moveTo(screenCorners[0].x, screenCorners[0].y);
+  for (let i = 1; i < 4; i++) omniCtx.lineTo(screenCorners[i].x, screenCorners[i].y);
+  omniCtx.closePath();
+  omniCtx.stroke();
+
+  omniCtx.strokeStyle = 'rgba(200, 150, 62, 0.65)';
+  omniCtx.lineWidth = 1.2;
+  omniCtx.stroke();
+
+  // 3. 高维引渡法阵（终点虚空法阵，位于 5.6, 0）
+  const portalPt = project3DtoIso({ x: purgeGame.voidPortal.x, y: purgeGame.voidPortal.y, z: 0 }, scale);
+  const px = cx + portalPt.screenX;
+  const py = cy + portalPt.screenY;
+  const time = Date.now() / 400;
+
+  // 虚空星环底纹
+  const portalGlow = 14 + Math.sin(time * 3) * 3;
+  omniCtx.fillStyle = 'rgba(96, 165, 250, 0.22)';
+  omniCtx.beginPath();
+  omniCtx.arc(px, py, portalGlow, 0, Math.PI * 2);
+  omniCtx.fill();
+
+  omniCtx.strokeStyle = '#3b82f6';
+  omniCtx.lineWidth = 2.0;
+  omniCtx.beginPath();
+  omniCtx.arc(px, py, 11, 0, Math.PI * 2);
+  omniCtx.stroke();
+
+  omniCtx.strokeStyle = '#93c5fd';
+  omniCtx.lineWidth = 1.2;
+  omniCtx.beginPath();
+  omniCtx.arc(px, py, 6, 0, Math.PI * 2);
+  omniCtx.stroke();
+
+  omniCtx.font = 'bold 10px serif';
+  omniCtx.fillStyle = '#2563eb';
+  omniCtx.textAlign = 'center';
+  omniCtx.fillText('【引渡法阵】', px, py - 18);
+
+  // 4. 圆形大祭司（坐镇中庭 0, 0）
+  const priestPt = project3DtoIso({ x: purgeGame.circlePriest.x, y: purgeGame.circlePriest.y, z: 0 }, scale);
+  const prX = cx + priestPt.screenX;
+  const prY = cy + priestPt.screenY;
+
+  // 圣光光环扩散波纹
+  const auraR = (purgeGame.circlePriest.auraRadius * scale) + Math.sin(time * 2.5) * 4;
+  const auraGrad = omniCtx.createRadialGradient(prX, prY, 4, prX, prY, auraR);
+  auraGrad.addColorStop(0, 'rgba(254, 240, 138, 0.45)');
+  auraGrad.addColorStop(0.6, 'rgba(234, 179, 8, 0.18)');
+  auraGrad.addColorStop(1, 'rgba(234, 179, 8, 0)');
+  omniCtx.fillStyle = auraGrad;
+  omniCtx.beginPath();
+  omniCtx.arc(prX, prY, auraR, 0, Math.PI * 2);
+  omniCtx.fill();
+
+  // 大祭司圆形尊躯
+  const priestR = purgeGame.circlePriest.radius * scale;
+  const priestGrad = omniCtx.createRadialGradient(prX - 3, prY - 3, 2, prX, prY, priestR);
+  priestGrad.addColorStop(0, '#ffffff');
+  priestGrad.addColorStop(0.35, '#fef08a');
+  priestGrad.addColorStop(0.85, '#ca8a04');
+  priestGrad.addColorStop(1, '#78350f');
+
+  omniCtx.fillStyle = priestGrad;
+  omniCtx.beginPath();
+  omniCtx.arc(prX, prY, priestR, 0, Math.PI * 2);
+  omniCtx.fill();
+
+  omniCtx.strokeStyle = '#854d0e';
+  omniCtx.lineWidth = 2.0;
+  omniCtx.stroke();
+
+  // 祭司同心金冠纹
+  omniCtx.strokeStyle = '#fef9c3';
+  omniCtx.lineWidth = 1.2;
+  omniCtx.beginPath();
+  omniCtx.arc(prX, prY, priestR * 0.55, 0, Math.PI * 2);
+  omniCtx.stroke();
+
+  omniCtx.font = 'bold 10px serif';
+  omniCtx.fillStyle = '#854d0e';
+  omniCtx.textAlign = 'left';
+  omniCtx.fillText('【圆形大祭司】', prX + priestR + 8, prY + 3);
+
+  // 5. 针形刺客（女性公民：致命锋利线段，纵向往复巡弋）
+  for (const a of purgeGame.needleAssassins) {
+    const halfLen = a.length / 2;
+    const p1 = project3DtoIso({ x: a.x, y: a.y - halfLen, z: 0 }, scale);
+    const p2 = project3DtoIso({ x: a.x, y: a.y + halfLen, z: 0 }, scale);
+    const ax1 = cx + p1.screenX;
+    const ay1 = cy + p1.screenY;
+    const ax2 = cx + p2.screenX;
+    const ay2 = cy + p2.screenY;
+    const midX = (ax1 + ax2) / 2;
+    const midY = (ay1 + ay2) / 2;
+
+    // 高速穿刺红色警示辉光
+    omniCtx.strokeStyle = 'rgba(225, 29, 72, 0.35)';
+    omniCtx.lineWidth = 9;
+    omniCtx.lineCap = 'round';
+    omniCtx.beginPath();
+    omniCtx.moveTo(ax1, ay1);
+    omniCtx.lineTo(ax2, ay2);
+    omniCtx.stroke();
+
+    // 细针核心
+    omniCtx.strokeStyle = '#be123c';
+    omniCtx.lineWidth = 3.6;
+    omniCtx.beginPath();
+    omniCtx.moveTo(ax1, ay1);
+    omniCtx.lineTo(ax2, ay2);
+    omniCtx.stroke();
+
+    omniCtx.strokeStyle = '#ffffff';
+    omniCtx.lineWidth = 1.4;
+    omniCtx.beginPath();
+    omniCtx.moveTo(ax1, ay1);
+    omniCtx.lineTo(ax2, ay2);
+    omniCtx.stroke();
+
+    // 极锐两端针尖
+    for (const pt of [{ x: ax1, y: ay1 }, { x: ax2, y: ay2 }]) {
+      omniCtx.fillStyle = '#ffffff';
+      omniCtx.strokeStyle = '#e11d48';
+      omniCtx.lineWidth = 1.2;
+      omniCtx.beginPath();
+      omniCtx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
+      omniCtx.fill();
+      omniCtx.stroke();
+    }
+
+    omniCtx.font = 'bold 9px serif';
+    omniCtx.fillStyle = '#9f1239';
+    omniCtx.textAlign = 'center';
+    const labelOffsetY = a.x < 0 ? 16 : -14;
+    omniCtx.fillText('【针形刺客】', midX, midY + labelOffsetY);
+  }
+
+  // 6. 高维接引符印（3 枚金菱星印）
+  for (const t of purgeGame.tokens) {
+    if (t.collected) continue;
+    const p = project3DtoIso({ x: t.x, y: t.y, z: 0 }, scale);
+    const fx = cx + p.screenX;
+    const fy = cy + p.screenY;
+
+    omniCtx.fillStyle = 'rgba(212, 175, 55, 0.28)';
+    omniCtx.beginPath();
+    omniCtx.arc(fx, fy, 10, 0, Math.PI * 2);
+    omniCtx.fill();
+
+    omniCtx.fillStyle = '#fef08a';
+    omniCtx.strokeStyle = '#b38022';
+    omniCtx.lineWidth = 1.5;
+    omniCtx.beginPath();
+    omniCtx.moveTo(fx, fy - 7);
+    omniCtx.lineTo(fx + 5, fy);
+    omniCtx.lineTo(fx, fy + 7);
+    omniCtx.lineTo(fx - 5, fy);
+    omniCtx.closePath();
+    omniCtx.fill();
+    omniCtx.stroke();
+  }
+
+  // 7. 正方形绅士：四等边四直角 + 视锥 / 飞升投影
+  const curZ = purgeGame.currentZ;
+  const isAsc = purgeGame.isAscended;
+
+  // 若已飞升，绘制地面投影虚影与引力金线
+  if (isAsc && curZ > 0.1) {
+    const gVerts = getSquareVertices(
+      { x: purgeGame.player.x, y: purgeGame.player.y },
+      purgeGame.player.size,
+      purgeGame.player.angle
+    );
+    const gScrVerts = gVerts.map(pt => {
+      const p = project3DtoIso({ x: pt.x, y: pt.y, z: 0 }, scale);
+      return { x: cx + p.screenX, y: cy + p.screenY };
+    });
+
+    // 地面暗影
+    omniCtx.fillStyle = 'rgba(80, 60, 40, 0.2)';
+    omniCtx.beginPath();
+    omniCtx.moveTo(gScrVerts[0].x, gScrVerts[0].y);
+    for (let i = 1; i < 4; i++) omniCtx.lineTo(gScrVerts[i].x, gScrVerts[i].y);
+    omniCtx.closePath();
+    omniCtx.fill();
+
+    // 4 根垂直升维接引光柱
+    const skyVerts = gVerts.map(pt => {
+      const p = project3DtoIso({ x: pt.x, y: pt.y, z: curZ }, scale);
+      return { x: cx + p.screenX, y: cy + p.screenY };
+    });
+
+    omniCtx.setLineDash([2, 3]);
+    omniCtx.strokeStyle = 'rgba(212, 175, 55, 0.55)';
+    omniCtx.lineWidth = 1.2;
+    for (let i = 0; i < 4; i++) {
+      omniCtx.beginPath();
+      omniCtx.moveTo(gScrVerts[i].x, gScrVerts[i].y);
+      omniCtx.lineTo(skyVerts[i].x, skyVerts[i].y);
+      omniCtx.stroke();
+    }
+    omniCtx.setLineDash([]);
+  }
+
+  // 视锥（仅在未飞升时显示地面扇形）
+  const playerScreenPt = project3DtoIso({ x: purgeGame.player.x, y: purgeGame.player.y, z: curZ }, scale);
+  const pxNow = cx + playerScreenPt.screenX;
+  const pyNow = cy + playerScreenPt.screenY;
+
+  if (!isAsc) {
+    const halfFov = Math.PI / 6;
+    const coneDist = 3.6;
+    const coneP1 = project3DtoIso({
+      x: purgeGame.player.x + Math.cos(purgeGame.player.angle - halfFov) * coneDist,
+      y: purgeGame.player.y + Math.sin(purgeGame.player.angle - halfFov) * coneDist,
+      z: 0,
+    }, scale);
+    const coneMid = project3DtoIso({
+      x: purgeGame.player.x + Math.cos(purgeGame.player.angle) * coneDist * 1.08,
+      y: purgeGame.player.y + Math.sin(purgeGame.player.angle) * coneDist * 1.08,
+      z: 0,
+    }, scale);
+    const coneP2 = project3DtoIso({
+      x: purgeGame.player.x + Math.cos(purgeGame.player.angle + halfFov) * coneDist,
+      y: purgeGame.player.y + Math.sin(purgeGame.player.angle + halfFov) * coneDist,
+      z: 0,
+    }, scale);
+
+    const coneGrad = omniCtx.createRadialGradient(pxNow, pyNow, 4, pxNow, pyNow, 60);
+    coneGrad.addColorStop(0, 'rgba(212, 175, 55, 0.28)');
+    coneGrad.addColorStop(0.7, 'rgba(212, 175, 55, 0.12)');
+    coneGrad.addColorStop(1, 'rgba(212, 175, 55, 0.0)');
+
+    omniCtx.fillStyle = coneGrad;
+    omniCtx.beginPath();
+    omniCtx.moveTo(pxNow, pyNow);
+    omniCtx.lineTo(cx + coneP1.screenX, cy + coneP1.screenY);
+    omniCtx.quadraticCurveTo(cx + coneMid.screenX, cy + coneMid.screenY, cx + coneP2.screenX, cy + coneP2.screenY);
+    omniCtx.closePath();
+    omniCtx.fill();
+  }
+
+  // 正方形多边形
+  const pVerts = getSquareVertices(
+    { x: purgeGame.player.x, y: purgeGame.player.y },
+    purgeGame.player.size,
+    purgeGame.player.angle
+  );
+  const pScrVerts = pVerts.map(pt => {
+    const p = project3DtoIso({ x: pt.x, y: pt.y, z: curZ }, scale);
+    return { x: cx + p.screenX, y: cy + p.screenY };
+  });
+
+  if (isAsc) {
+    omniCtx.fillStyle = '#ffffff';
+    omniCtx.strokeStyle = '#facc15';
+    omniCtx.lineWidth = 2.4;
+  } else {
+    omniCtx.fillStyle = '#fcfbf7';
+    omniCtx.strokeStyle = '#b38022';
+    omniCtx.lineWidth = 1.8;
+  }
+
+  omniCtx.beginPath();
+  omniCtx.moveTo(pScrVerts[0].x, pScrVerts[0].y);
+  for (let i = 1; i < 4; i++) omniCtx.lineTo(pScrVerts[i].x, pScrVerts[i].y);
+  omniCtx.closePath();
+  omniCtx.fill();
+  omniCtx.stroke();
+
+  // 中心金色方印
+  const inVerts = getSquareVertices(
+    { x: purgeGame.player.x, y: purgeGame.player.y },
+    purgeGame.player.size * 0.45,
+    purgeGame.player.angle
+  );
+  const inScrVerts = inVerts.map(pt => {
+    const p = project3DtoIso({ x: pt.x, y: pt.y, z: curZ }, scale);
+    return { x: cx + p.screenX, y: cy + p.screenY };
+  });
+  omniCtx.strokeStyle = isAsc ? '#eab308' : '#d4af37';
+  omniCtx.lineWidth = 1.2;
+  omniCtx.beginPath();
+  omniCtx.moveTo(inScrVerts[0].x, inScrVerts[0].y);
+  for (let i = 1; i < 4; i++) omniCtx.lineTo(inScrVerts[i].x, inScrVerts[i].y);
+  omniCtx.closePath();
+  omniCtx.stroke();
+
+  omniCtx.font = 'bold 10px serif';
+  omniCtx.fillStyle = isAsc ? '#b45309' : '#3e2c14';
+  omniCtx.textAlign = 'left';
+  if (isAsc) {
+    omniCtx.fillText('我（高维飞升）', pxNow + 16, pyNow + 3);
+  } else {
+    omniCtx.fillText('我（正方形绅士）', pxNow + 16, pyNow + 3);
+  }
+}
+
+// =========================================================================
+// 第二幕第一人称渲染：迷雾中刺客细针闪光与大祭司圣光
+// =========================================================================
+function renderPurgeSubjView(): void {
+  const w = subjCanvas.width;
+  const h = subjCanvas.height;
+  subjCtx.clearRect(0, 0, w, h);
+
+  subjCtx.fillStyle = '#1c1813';
+  subjCtx.fillRect(0, 0, w, h);
+
+  const hudHeight = 36;
+  const horizonY = (h - hudHeight) / 2;
+  const slotHeight = 13;
+  const slotTop = horizonY - slotHeight / 2;
+
+  // 视网膜迷雾基底
+  subjCtx.fillStyle = '#c5b89c';
+  subjCtx.fillRect(0, slotTop, w, slotHeight);
+
+  if (purgeGame.isAscended) {
+    // 飞升状态：脱离二维迷雾，整条视网膜沐浴在璀璨的高维晨曦中
+    const ascGrad = subjCtx.createLinearGradient(0, slotTop, w, slotTop);
+    ascGrad.addColorStop(0, 'rgba(147, 197, 253, 0.7)');
+    ascGrad.addColorStop(0.5, 'rgba(254, 240, 138, 0.9)');
+    ascGrad.addColorStop(1, 'rgba(147, 197, 253, 0.7)');
+    subjCtx.fillStyle = ascGrad;
+    subjCtx.fillRect(0, slotTop, w, slotHeight);
+  } else {
+    // 平面受限状态：180 束射线投射
+    const rayCount = 180;
+    const rawRays = purgeGame.castRays(rayCount);
+    const colWidth = w / rayCount;
+
+    for (let i = 0; i < rayCount; i++) {
+      const ray = rawRays[i];
+      if (ray.distance < Infinity) {
+        const x = i * colWidth;
+        const intensity = Math.max(0.12, Math.min(1.0, 1.0 - (ray.distance / 16)));
+
+        if (ray.hitType === 'priest') {
+          // 圆形大祭司：宽阔温润的纯金圣光
+          const alpha = Math.min(0.95, intensity * 0.9);
+          const pGrad = subjCtx.createLinearGradient(0, slotTop, 0, slotTop + slotHeight);
+          pGrad.addColorStop(0, `rgba(254, 240, 138, ${alpha})`);
+          pGrad.addColorStop(0.5, `rgba(234, 179, 8, ${alpha})`);
+          pGrad.addColorStop(1, `rgba(180, 83, 9, ${alpha * 0.8})`);
+          subjCtx.fillStyle = pGrad;
+          subjCtx.fillRect(x, slotTop, Math.ceil(colWidth), slotHeight);
+        } else if (ray.hitType === 'needle') {
+          // 针形刺客：近乎无形的细针在迷雾中巡弋，针尖爆出耀眼白芒
+          const tip = ray.tipFactor || 0;
+          if (tip > 0.65) {
+            subjCtx.fillStyle = '#ffffff';
+            subjCtx.fillRect(x, slotTop, Math.ceil(colWidth), slotHeight);
+          } else {
+            const alpha = Math.min(0.85, intensity * 0.7);
+            subjCtx.fillStyle = `rgba(225, 29, 72, ${alpha})`;
+            subjCtx.fillRect(x, slotTop + 2, Math.ceil(colWidth), slotHeight - 4);
+          }
+        } else if (ray.hitType === 'portal') {
+          // 高维引渡法阵：深邃空灵的虚空蓝芒
+          const alpha = Math.min(0.9, intensity * 0.85);
+          subjCtx.fillStyle = `rgba(96, 165, 250, ${alpha})`;
+          subjCtx.fillRect(x, slotTop, Math.ceil(colWidth), slotHeight);
+        } else {
+          // 街区墙体
+          const alpha = Math.min(0.85, intensity * 0.75);
+          subjCtx.fillStyle = `rgba(32, 28, 22, ${alpha})`;
+          subjCtx.fillRect(x, slotTop, Math.ceil(colWidth), slotHeight);
+        }
+      }
+    }
+  }
+
+  // 视网膜青铜边框
+  subjCtx.strokeStyle = '#8c6d3b';
+  subjCtx.lineWidth = 1.2;
+  subjCtx.strokeRect(0, slotTop, w, slotHeight);
+
+  // 准星
+  subjCtx.fillStyle = 'rgba(212, 175, 55, 0.6)';
+  subjCtx.fillRect(w / 2 - 0.5, slotTop, 1, slotHeight);
+
+  // 底部 HUD 状态
+  subjCtx.fillStyle = '#0f172a';
+  subjCtx.fillRect(0, h - hudHeight, w, hudHeight);
+
+  subjCtx.fillStyle = '#d4af37';
+  subjCtx.font = 'bold 11px serif';
+  subjCtx.textAlign = 'center';
+
+  if (purgeGame.isAscended) {
+    subjCtx.fillText('【高维超脱视界】已凌驾平面议会之上 · 俯瞰凡俗街区与刺客', w / 2, h - 14);
+  } else {
+    subjCtx.fillText('【正方形平直前沿视界 · 方位 0°】迷雾中隐针闪烁', w / 2, h - 14);
+  }
 
   subjCtx.font = '10px serif';
   subjCtx.textAlign = 'left';

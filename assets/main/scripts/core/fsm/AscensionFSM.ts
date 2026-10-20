@@ -92,6 +92,10 @@ export class AscensionFSM extends BaseFSM<AscensionFSM> {
     return this.changeState(AscensionState.ASCENDING_3D);
   }
 
+  public triggerAscension(durationSeconds: number = 3): boolean {
+    return this.triggerAscend(durationSeconds);
+  }
+
   // Internal state mutators
   public _setZ(z: number): void {
     this._currentZ = z;
