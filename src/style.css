@@ -25,22 +25,24 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  padding: 8px;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
 }
 
 .mobile-frame {
   width: 100%;
-  max-width: 430px;
-  height: 92vh;
-  max-height: 880px;
+  max-width: 414px;
+  height: 96vh;
+  max-height: 860px;
   background-color: var(--parchment);
-  border: 4px double var(--brass);
+  border: 3px double var(--brass);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(140, 109, 59, 0.2);
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  margin: auto;
 }
 
 /* 顶部信息栏 10% */

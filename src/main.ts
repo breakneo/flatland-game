@@ -255,7 +255,7 @@ function renderOmniscientView(): void {
   }
   for (let y = -5.2; y <= 5.2; y += 1.8) {
     const p1 = project3DtoIso({ x: -5.2, y, z: 0 }, scale);
-    const p2 = project3DtoIso({ x, y: 5.2, z: 0 }, scale);
+    const p2 = project3DtoIso({ x: 5.2, y, z: 0 }, scale);
     omniCtx.beginPath();
     omniCtx.moveTo(cx + p1.screenX, cy + p1.screenY);
     omniCtx.lineTo(cx + p2.screenX, cy + p2.screenY);
@@ -611,8 +611,8 @@ function renderOmniscientView(): void {
 
     omniCtx.font = 'bold 10px serif';
     omniCtx.fillStyle = '#3e2c14';
-    omniCtx.textAlign = 'center';
-    omniCtx.fillText('正方形绅士', cx + centerPoint.screenX, cy + centerPoint.screenY - 14);
+    omniCtx.textAlign = 'left';
+    omniCtx.fillText('正方形绅士', cx + centerPoint.screenX + 16, cy + centerPoint.screenY + 3);
   }
 }
 
