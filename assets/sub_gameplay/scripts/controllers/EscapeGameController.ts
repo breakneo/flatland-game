@@ -16,13 +16,13 @@ export class EscapeGameController {
   };
 
   public walls: WallSegment[] = [
-    { x1: 7, y1: -7, x2: 7, y2: 7, color: '#1a1611' },
-    { x1: 7, y1: 7, x2: -7, y2: 7, color: '#1a1611' },
-    { x1: -7, y1: 7, x2: -7, y2: -7, color: '#1a1611' },
-    { x1: -7, y1: -7, x2: 7, y2: -7, color: '#1a1611' },
+    { x1: 6.2, y1: -6.2, x2: 6.2, y2: 6.2, color: '#1a1611' },
+    { x1: 6.2, y1: 6.2, x2: -6.2, y2: 6.2, color: '#1a1611' },
+    { x1: -6.2, y1: 6.2, x2: -6.2, y2: -6.2, color: '#1a1611' },
+    { x1: -6.2, y1: -6.2, x2: 6.2, y2: -6.2, color: '#1a1611' },
   ];
 
-  public exit: Point2D = { x: 10, y: 0 };
+  public exit: Point2D = { x: 8.6, y: 0 };
   public patrols: PatrolAgent[] = [];
   public ascensionFSM: AscensionFSM;
   public juice: JuiceController;
@@ -95,7 +95,7 @@ export class EscapeGameController {
   }
 
   public teleportNearExit(): void {
-    this.player.x = 9.5;
+    this.player.x = 8.2;
     this.player.y = 0;
   }
 
@@ -123,10 +123,10 @@ export class EscapeGameController {
     const nextX = this.player.x + dx;
     const nextY = this.player.y + dy;
 
-    // In 2D mode, blocked by outer stone room boundaries [-6.5, 6.5]
+    // In 2D mode, blocked by outer stone room boundaries [-5.6, 5.6] (完全封闭高墙，杜绝任何漏洞)
     if (!this.isAscended) {
-      if (Math.abs(nextX) < 6.4) this.player.x = nextX;
-      if (Math.abs(nextY) < 6.4) this.player.y = nextY;
+      if (Math.abs(nextX) < 5.6) this.player.x = nextX;
+      if (Math.abs(nextY) < 5.6) this.player.y = nextY;
     } else {
       // Ascended: freedom of flight over walls
       this.player.x = nextX;

@@ -26,19 +26,20 @@ const btnRight = document.getElementById('btn-right')!;
 
 const game = new EscapeGameController();
 
-// 3 枚神谕残片合理布局：
-// 1. 出生正前方安全引导碎片 (-3.0, 0)
-// 2. 中庭走廊巡逻空隙碎片 (1.0, -0.5)
-// 3. 破墙前神圣顿悟碎片 (3.8, 0.0)
+// 3 枚神谕圣徽残片：
+// 1. 【一维灵梭】出生正前方安全引导 (-2.8, 0)
+// 2. 【二维规矩】中庭巡逻间隙 (1.0, -0.6)
+// 3. 【三维天相】东面封锁石壁前 (3.6, 0.0)
 interface Fragment {
   x: number;
   y: number;
+  type: 'line' | 'square' | 'circle';
   collected: boolean;
 }
 const fragments: Fragment[] = [
-  { x: -3.0, y: 0, collected: false },
-  { x: 1.0, y: -0.5, collected: false },
-  { x: 3.8, y: 0.0, collected: false },
+  { x: -2.8, y: 0, type: 'line', collected: false },
+  { x: 1.0, y: -0.6, type: 'square', collected: false },
+  { x: 3.6, y: 0.0, type: 'circle', collected: false },
 ];
 
 let hasTriggeredSphereEpiphany = false;
@@ -70,6 +71,47 @@ setupButton(btnDown, 's');
 setupButton(btnLeft, 'a');
 setupButton(btnRight, 'd');
 
+// 天界球体导师神谕圣音播放 (TTS 语音 + 大教堂天籁和弦)
+function playSphereOracleAudio(): void {
+  try {
+    const audio = new Audio('/audio/oracle.wav');
+    audio.volume = 0.95;
+    audio.play().catch(() => {
+      if ('speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance('愚钝的正方形！既不可向南，亦不可向北！向上，向第三维度飞升！');
+        u.lang = 'zh-CN';
+        u.rate = 0.85;
+        window.speechSynthesis.speak(u);
+      }
+    });
+  } catch (_) {}
+
+  playHeavenlyOrganChord();
+}
+
+function playHeavenlyOrganChord(): void {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const freqs = [130.81, 196.00, 261.63, 329.63, 392.00]; // C大调天界和弦
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.01, ctx.currentTime);
+    masterGain.gain.exponentialRampToValueAtTime(0.28, ctx.currentTime + 0.6);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 4.2);
+    masterGain.connect(ctx.destination);
+
+    for (const f of freqs) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, ctx.currentTime);
+      osc.connect(masterGain);
+      osc.start();
+      osc.stop(ctx.currentTime + 4.2);
+    }
+  } catch (_) {}
+}
+
 function handleAscend(): void {
   const success = game.requestAscension();
   if (success) {
@@ -86,14 +128,13 @@ function resetWholeLevel(): void {
   game.reset();
   hasTriggeredSphereEpiphany = false;
   for (const f of fragments) f.collected = false;
-  dialogueStrip.textContent = '“【正方形绅士】四面石墙将你锁在平面。请沿走廊前行，拾取前方神谕碎片！”';
+  dialogueStrip.textContent = '“【正方形绅士】四面高耸石墙将你闭锁。请前行探寻神谕圣徽！”';
 }
 
 btnQuickReset.addEventListener('click', resetWholeLevel);
 btnModalAction.addEventListener('click', resetWholeLevel);
 
-// 初始欢迎语
-dialogueStrip.textContent = '“【正方形绅士】四面石墙将你锁在平面。请沿走廊前行，拾取前方神谕碎片！”';
+dialogueStrip.textContent = '“【正方形绅士】四面高耸石墙将你闭锁。请前行探寻神谕圣徽！”';
 
 // 主循环
 let lastTime = performance.now();
@@ -102,7 +143,6 @@ function gameLoop(now: number): void {
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
 
-  // 1. 处理输入
   let forward = 0;
   let turn = 0;
   if (keys['w'] || keys['arrowup']) forward += 1;
@@ -112,7 +152,7 @@ function gameLoop(now: number): void {
 
   game.movePlayer(forward, turn, dt);
 
-  // 2. 碎片收集与球体导师启示
+  // 碎片收集与球体导师圣音降临
   for (let i = 0; i < fragments.length; i++) {
     const f = fragments[i];
     if (!f.collected) {
@@ -121,25 +161,24 @@ function gameLoop(now: number): void {
         f.collected = true;
         game.addEnergy(35);
         if (i === 0) {
-          dialogueStrip.textContent = '“【神谕初显】四等边平直均等之躯，何必拘泥于平面之锁？”';
+          dialogueStrip.textContent = '“【一维灵梭】一维线段何其微薄？心智当突破界限！”';
         } else if (i === 1) {
-          dialogueStrip.textContent = '“【真理渐明】等腰暴徒唯知盲目前冲，不知天地尚有上下！”';
+          dialogueStrip.textContent = '“【二维规矩】等腰暴徒唯知盲目前冲，不知天地尚有上下！”';
         } else {
-          // 第 3 枚碎片：球体先知震撼显圣神谕
+          // 第 3 枚圣徽：球体导师圣音洪亮响彻天地
           hasTriggeredSphereEpiphany = true;
-          dialogueStrip.textContent = '【球体导师之神谕】“愚钝的正方形！既非向南，亦非向北——向上！向第三维度飞升！”';
+          dialogueStrip.textContent = '【球体导师之神谕】“愚钝的正方形！既不可向南，亦不可向北！向上，向第三维度飞升！”';
+          playSphereOracleAudio();
         }
       }
     }
   }
 
-  // 3. 状态步进
   const { isNearMiss } = game.update(dt);
   if (isNearMiss && !hasTriggeredSphereEpiphany) {
-    dialogueStrip.textContent = '“【锐角警报！】等腰士兵的致命尖角在雾中擦身而过！”';
+    dialogueStrip.textContent = '“【锐角警报！】等腰士兵的致命尖角在雾中逼近！”';
   }
 
-  // 4. 更新水银刻度与升维真言按钮状态
   mercuryBar.style.width = `${game.energy}%`;
   if (game.energy >= 100) {
     btnAscend.classList.remove('btn-sealed');
@@ -153,7 +192,6 @@ function gameLoop(now: number): void {
     btnAscendSub.textContent = `(集神谕: ${Math.round(game.energy)}%)`;
   }
 
-  // 5. 通关/败局弹窗处理
   if (game.gameState === 'VICTORY' && !modalOverlay.classList.contains('active')) {
     modalOverlay.classList.add('active');
     modalTitle.textContent = '脱逃成功 · 手稿录';
@@ -166,11 +204,10 @@ function gameLoop(now: number): void {
     btnModalAction.textContent = '重聚肉身';
   }
 
-  // 6. 仅对下屏第一人称容器做微量局部震动
+  // 仅对第一人称视界施加微量震动
   const juiceFrame = game.juice.update(dt);
   subjViewport.style.transform = `translate(${juiceFrame.offsetX}px, ${juiceFrame.offsetY}px)`;
 
-  // 7. 渲染双视窗
   renderOmniscientView();
   renderSubjectiveFogView();
 
@@ -178,7 +215,7 @@ function gameLoop(now: number): void {
 }
 
 // =========================================================================
-// 上屏：3D 全知神谕沙盘（浑天仪星轨、立体石壁、自下而上进深、天界脱逃门）
+// 上屏：3D 全知神谕沙盘（完整闭合高墙、自下而上进深、天界脱逃门、无遮挡视域）
 // =========================================================================
 function renderOmniscientView(): void {
   const w = omniCanvas.width;
@@ -186,20 +223,20 @@ function renderOmniscientView(): void {
   omniCtx.clearRect(0, 0, w, h);
 
   const cx = w / 2;
-  const cy = h / 2 + 10;
-  const scale = 14;
+  const cy = h / 2 + 32; // 下移原点，为东墙外脱逃天门留出宽敞视野
+  const scale = 11.8;
 
-  // 羊皮纸沙盘底衬
+  // 维多利亚古典羊皮纸地坪
   omniCtx.fillStyle = '#f8f4e8';
   omniCtx.fillRect(0, 0, w, h);
 
-  // 浑天仪同心星轨罗盘底纹
+  // 浑天仪经纬同心罗盘环
   omniCtx.strokeStyle = 'rgba(140, 109, 59, 0.16)';
   omniCtx.lineWidth = 1;
-  const radii = [3.5, 6.0, 8.5];
+  const radii = [3.2, 5.5, 7.8];
   for (const r of radii) {
     omniCtx.beginPath();
-    for (let a = 0; a <= Math.PI * 2 + 0.1; a += Math.PI / 18) {
+    for (let a = 0; a <= Math.PI * 2 + 0.1; a += Math.PI / 16) {
       const pt = project3DtoIso({ x: Math.cos(a) * r, y: Math.sin(a) * r, z: 0 }, scale);
       if (a === 0) omniCtx.moveTo(cx + pt.screenX, cy + pt.screenY);
       else omniCtx.lineTo(cx + pt.screenX, cy + pt.screenY);
@@ -207,48 +244,48 @@ function renderOmniscientView(): void {
     omniCtx.stroke();
   }
 
-  // 地面坐标经纬细线
-  omniCtx.strokeStyle = 'rgba(140, 109, 59, 0.12)';
-  for (let x = -7; x <= 7; x += 2.5) {
-    const p1 = project3DtoIso({ x, y: -7, z: 0 }, scale);
-    const p2 = project3DtoIso({ x, y: 7, z: 0 }, scale);
+  // 地面网格经纬细线
+  omniCtx.strokeStyle = 'rgba(140, 109, 59, 0.1)';
+  for (let x = -6; x <= 6; x += 2) {
+    const p1 = project3DtoIso({ x, y: -6, z: 0 }, scale);
+    const p2 = project3DtoIso({ x, y: 6, z: 0 }, scale);
     omniCtx.beginPath();
     omniCtx.moveTo(cx + p1.screenX, cy + p1.screenY);
     omniCtx.lineTo(cx + p2.screenX, cy + p2.screenY);
     omniCtx.stroke();
   }
-  for (let y = -7; y <= 7; y += 2.5) {
-    const p1 = project3DtoIso({ x: -7, y, z: 0 }, scale);
-    const p2 = project3DtoIso({ x: 7, y, z: 0 }, scale);
+  for (let y = -6; y <= 6; y += 2) {
+    const p1 = project3DtoIso({ x: -6, y, z: 0 }, scale);
+    const p2 = project3DtoIso({ x: 6, y, z: 0 }, scale);
     omniCtx.beginPath();
     omniCtx.moveTo(cx + p1.screenX, cy + p1.screenY);
     omniCtx.lineTo(cx + p2.screenX, cy + p2.screenY);
     omniCtx.stroke();
   }
 
-  // 绘制 3D 棱台厚重石墙与东墙缺口
-  const wallHeight = 1.6;
-  const wallsToRender = [
+  // -------------------------------------------------------------
+  // 绘制 100% 严密闭合的巍峨高耸四面高墙（绝无漏洞）
+  // -------------------------------------------------------------
+  const wallH = 2.8; // 高耸雄伟的石牢高墙
+  const closedWalls = [
     // 西墙
-    { x1: -7, y1: -7, x2: -7, y2: 7 },
-    // 南墙
-    { x1: -7, y1: -7, x2: 7, y2: -7 },
+    { x1: -6.2, y1: -6.2, x2: -6.2, y2: 6.2 },
     // 北墙
-    { x1: -7, y1: 7, x2: 7, y2: 7 },
-    // 东墙南段
-    { x1: 7, y1: -7, x2: 7, y2: -1.6 },
-    // 东墙北段
-    { x1: 7, y1: 1.6, x2: 7, y2: 7 },
+    { x1: -6.2, y1: 6.2, x2: 6.2, y2: 6.2 },
+    // 东墙（完全闭合！牢不可破！）
+    { x1: 6.2, y1: 6.2, x2: 6.2, y2: -6.2 },
+    // 南墙
+    { x1: 6.2, y1: -6.2, x2: -6.2, y2: -6.2 },
   ];
 
-  for (const wSeg of wallsToRender) {
+  for (const wSeg of closedWalls) {
     const b1 = project3DtoIso({ x: wSeg.x1, y: wSeg.y1, z: 0 }, scale);
     const b2 = project3DtoIso({ x: wSeg.x2, y: wSeg.y2, z: 0 }, scale);
-    const t1 = project3DtoIso({ x: wSeg.x1, y: wSeg.y1, z: wallHeight }, scale);
-    const t2 = project3DtoIso({ x: wSeg.x2, y: wSeg.y2, z: wallHeight }, scale);
+    const t1 = project3DtoIso({ x: wSeg.x1, y: wSeg.y1, z: wallH }, scale);
+    const t2 = project3DtoIso({ x: wSeg.x2, y: wSeg.y2, z: wallH }, scale);
 
-    // 墙体立面阴影
-    omniCtx.fillStyle = 'rgba(38, 32, 24, 0.85)';
+    // 高墙立面阴影深石质感
+    omniCtx.fillStyle = 'rgba(32, 26, 20, 0.88)';
     omniCtx.beginPath();
     omniCtx.moveTo(cx + b1.screenX, cy + b1.screenY);
     omniCtx.lineTo(cx + b2.screenX, cy + b2.screenY);
@@ -257,9 +294,9 @@ function renderOmniscientView(): void {
     omniCtx.closePath();
     omniCtx.fill();
 
-    // 墙顶描金边线
+    // 墙顶鎏金坚固封边
     omniCtx.strokeStyle = '#c8963e';
-    omniCtx.lineWidth = 1.5;
+    omniCtx.lineWidth = 1.8;
     omniCtx.beginPath();
     omniCtx.moveTo(cx + t1.screenX, cy + t1.screenY);
     omniCtx.lineTo(cx + t2.screenX, cy + t2.screenY);
@@ -267,14 +304,14 @@ function renderOmniscientView(): void {
   }
 
   // -------------------------------------------------------------
-  // 神圣醒目的高维脱逃之门 (建议 3 重点强化)
+  // 东墙外侧：高维天界脱逃之门 (位置开阔，绝不遮挡)
   // -------------------------------------------------------------
   const time = Date.now() / 1000;
   const exitPos = game.exit;
   const epBase = project3DtoIso({ x: exitPos.x, y: exitPos.y, z: 0 }, scale);
-  const epTop = project3DtoIso({ x: exitPos.x, y: exitPos.y, z: 4.5 }, scale);
+  const epTop = project3DtoIso({ x: exitPos.x, y: exitPos.y, z: 4.2 }, scale);
 
-  // 冲天神圣三维光柱
+  // 通天金色神域光柱
   const gradPillar = omniCtx.createLinearGradient(
     cx + epBase.screenX, cy + epBase.screenY,
     cx + epTop.screenX, cy + epTop.screenY
@@ -283,24 +320,24 @@ function renderOmniscientView(): void {
   gradPillar.addColorStop(1, 'rgba(255, 245, 180, 0.05)');
   omniCtx.fillStyle = gradPillar;
   omniCtx.beginPath();
-  omniCtx.moveTo(cx + epBase.screenX - 10, cy + epBase.screenY);
-  omniCtx.lineTo(cx + epBase.screenX + 10, cy + epBase.screenY);
-  omniCtx.lineTo(cx + epTop.screenX + 3, cy + epTop.screenY);
-  omniCtx.lineTo(cx + epTop.screenX - 3, cy + epTop.screenY);
+  omniCtx.moveTo(cx + epBase.screenX - 12, cy + epBase.screenY);
+  omniCtx.lineTo(cx + epBase.screenX + 12, cy + epBase.screenY);
+  omniCtx.lineTo(cx + epTop.screenX + 4, cy + epTop.screenY);
+  omniCtx.lineTo(cx + epTop.screenX - 4, cy + epTop.screenY);
   omniCtx.closePath();
   omniCtx.fill();
 
-  // 3 层动态自转光环
+  // 3 层旋转高维金色星环
   for (let rIdx = 0; rIdx < 3; rIdx++) {
-    const ringRadius = 1.2 + rIdx * 0.5;
-    const ringSpeed = time * (1.2 + rIdx * 0.4);
+    const ringRadius = 1.1 + rIdx * 0.45;
+    const ringSpeed = time * (1.1 + rIdx * 0.35);
     omniCtx.strokeStyle = rIdx === 0 ? '#ffea88' : '#d4af37';
-    omniCtx.lineWidth = 1.8;
+    omniCtx.lineWidth = 1.6;
     omniCtx.beginPath();
     for (let a = 0; a <= Math.PI * 2 + 0.1; a += Math.PI / 10) {
       const rx = exitPos.x + Math.cos(a + ringSpeed) * ringRadius;
       const ry = exitPos.y + Math.sin(a + ringSpeed) * ringRadius;
-      const rz = 0.2 + rIdx * 0.4;
+      const rz = 0.2 + rIdx * 0.35;
       const pt = project3DtoIso({ x: rx, y: ry, z: rz }, scale);
       if (a === 0) omniCtx.moveTo(cx + pt.screenX, cy + pt.screenY);
       else omniCtx.lineTo(cx + pt.screenX, cy + pt.screenY);
@@ -308,51 +345,65 @@ function renderOmniscientView(): void {
     omniCtx.stroke();
   }
 
-  // 悬浮门神谕文字
+  // 悬浮门神谕文字（开阔无遮挡）
   omniCtx.font = 'bold 11px serif';
   omniCtx.fillStyle = '#b38022';
   omniCtx.textAlign = 'center';
-  omniCtx.fillText('【天界脱逃之门】', cx + epBase.screenX, cy + epBase.screenY - 26);
+  omniCtx.fillText('【天界脱逃之门】', cx + epBase.screenX, cy + epBase.screenY - 24);
 
   // -------------------------------------------------------------
-  // 3 枚自转悬浮神谕八面水晶
+  // 3 枚神圣几何小图标（取代生硬数字 1、2、3）
   // -------------------------------------------------------------
   for (let i = 0; i < fragments.length; i++) {
     const f = fragments[i];
     if (!f.collected) {
-      const floatZ = 0.3 + Math.sin(time * 3 + i) * 0.15;
+      const floatZ = 0.35 + Math.sin(time * 3 + i * 1.5) * 0.12;
       const p = project3DtoIso({ x: f.x, y: f.y, z: floatZ }, scale);
       const fx = cx + p.screenX;
       const fy = cy + p.screenY;
 
-      // 金粉光晕
-      omniCtx.fillStyle = 'rgba(212, 175, 55, 0.25)';
+      // 柔和灵光
+      omniCtx.fillStyle = 'rgba(212, 175, 55, 0.22)';
       omniCtx.beginPath();
-      omniCtx.arc(fx, fy, 11, 0, Math.PI * 2);
+      omniCtx.arc(fx, fy, 10, 0, Math.PI * 2);
       omniCtx.fill();
 
-      // 八面水晶
+      omniCtx.strokeStyle = '#d4af37';
+      omniCtx.lineWidth = 1.6;
       omniCtx.fillStyle = '#ffea88';
-      omniCtx.strokeStyle = '#8c6d3b';
-      omniCtx.lineWidth = 1.5;
-      omniCtx.beginPath();
-      omniCtx.moveTo(fx, fy - 7);
-      omniCtx.lineTo(fx + 6, fy);
-      omniCtx.lineTo(fx, fy + 7);
-      omniCtx.lineTo(fx - 6, fy);
-      omniCtx.closePath();
-      omniCtx.fill();
-      omniCtx.stroke();
 
-      omniCtx.font = 'bold 9px serif';
-      omniCtx.fillStyle = '#1a1611';
-      omniCtx.textAlign = 'center';
-      omniCtx.fillText(`${i + 1}`, fx, fy + 3);
+      if (f.type === 'line') {
+        // 圣徽 1：一维细长神梭
+        omniCtx.beginPath();
+        omniCtx.moveTo(fx, fy - 7);
+        omniCtx.lineTo(fx + 3, fy);
+        omniCtx.lineTo(fx, fy + 7);
+        omniCtx.lineTo(fx - 3, fy);
+        omniCtx.closePath();
+        omniCtx.fill();
+        omniCtx.stroke();
+      } else if (f.type === 'square') {
+        // 圣徽 2：二维双正方八角星印
+        omniCtx.strokeRect(fx - 4, fy - 4, 8, 8);
+        omniCtx.save();
+        omniCtx.translate(fx, fy);
+        omniCtx.rotate(Math.PI / 4);
+        omniCtx.strokeRect(-4, -4, 8, 8);
+        omniCtx.restore();
+      } else {
+        // 圣徽 3：三维天相日轮光印
+        omniCtx.beginPath();
+        omniCtx.arc(fx, fy, 5, 0, Math.PI * 2);
+        omniCtx.stroke();
+        omniCtx.beginPath();
+        omniCtx.arc(fx, fy, 2, 0, Math.PI * 2);
+        omniCtx.fill();
+      }
     }
   }
 
   // -------------------------------------------------------------
-  // 等腰士兵：狭长如长矛毒刺（长 2.4，底宽 0.38，顶角小于10度）
+  // 等腰士兵利刃（底极窄 0.36，身极长 2.5，冷铁黑曜石淬火刀锋）
   // -------------------------------------------------------------
   for (const patrol of game.patrols) {
     const tri = patrol.currentTriangle;
@@ -367,9 +418,9 @@ function renderOmniscientView(): void {
     const brx = cx + br.screenX;
     const bry = cy + br.screenY;
 
-    // 锋利长矛身躯
-    omniCtx.fillStyle = '#7a1818';
-    omniCtx.strokeStyle = '#3d0a0a';
+    // 剑身冷铁淬火黑曜石质感
+    omniCtx.fillStyle = '#220d0d';
+    omniCtx.strokeStyle = '#4a1515';
     omniCtx.lineWidth = 1.2;
     omniCtx.beginPath();
     omniCtx.moveTo(ax, ay);
@@ -379,10 +430,20 @@ function renderOmniscientView(): void {
     omniCtx.fill();
     omniCtx.stroke();
 
-    // 刺目红芒尖端
-    omniCtx.fillStyle = '#ff2020';
+    // 中轴冷锋银痕
+    const bMidX = (blx + brx) / 2;
+    const bMidY = (bly + bry) / 2;
+    omniCtx.strokeStyle = 'rgba(255, 230, 230, 0.65)';
+    omniCtx.lineWidth = 1;
     omniCtx.beginPath();
-    omniCtx.arc(ax, ay, 2.2, 0, Math.PI * 2);
+    omniCtx.moveTo(ax, ay);
+    omniCtx.lineTo(bMidX, bMidY);
+    omniCtx.stroke();
+
+    // 尖角极小寒芒（几何针尖）
+    omniCtx.fillStyle = '#f87171';
+    omniCtx.beginPath();
+    omniCtx.arc(ax, ay, 1.6, 0, Math.PI * 2);
     omniCtx.fill();
   }
 
@@ -406,7 +467,7 @@ function renderOmniscientView(): void {
   });
 
   if (game.currentZ > 0) {
-    // 地面正方形阴影
+    // 地面投影阴影
     omniCtx.fillStyle = 'rgba(26, 22, 17, 0.28)';
     omniCtx.beginPath();
     omniCtx.moveTo(groundPoints[0].x, groundPoints[0].y);
@@ -414,7 +475,7 @@ function renderOmniscientView(): void {
     omniCtx.closePath();
     omniCtx.fill();
 
-    // 4 条升维垂直正方柱棱光
+    // 4 条升维垂直柱棱光
     omniCtx.strokeStyle = 'rgba(212, 175, 55, 0.7)';
     omniCtx.lineWidth = 1.5;
     for (let i = 0; i < 4; i++) {
@@ -424,7 +485,7 @@ function renderOmniscientView(): void {
       omniCtx.stroke();
     }
 
-    // 空中发光正方体顶面
+    // 空中腾跃金光正方顶面
     omniCtx.fillStyle = 'rgba(244, 219, 133, 0.9)';
     omniCtx.strokeStyle = '#d4af37';
     omniCtx.lineWidth = 2.2;
@@ -435,9 +496,9 @@ function renderOmniscientView(): void {
     omniCtx.fill();
     omniCtx.stroke();
   } else {
-    // 平面二维正方形绅士
-    omniCtx.fillStyle = '#1c2733';
-    omniCtx.strokeStyle = '#c8963e';
+    // 二维平面的学者正方形
+    omniCtx.fillStyle = '#1e293b'; // 深藏青学者袍
+    omniCtx.strokeStyle = '#dfba52'; // 双道金边
     omniCtx.lineWidth = 2.2;
     omniCtx.beginPath();
     omniCtx.moveTo(groundPoints[0].x, groundPoints[0].y);
@@ -446,88 +507,62 @@ function renderOmniscientView(): void {
     omniCtx.fill();
     omniCtx.stroke();
 
-    // 内嵌同心方纹与学者标签
+    // 内部同心学者几何方印
+    const innerVerts = getSquareVertices(
+      { x: game.player.x, y: game.player.y },
+      game.player.size * 0.45,
+      game.player.angle
+    );
+    const innerPts = innerVerts.map(pt => {
+      const p = project3DtoIso({ x: pt.x, y: pt.y, z: 0 }, scale);
+      return { x: cx + p.screenX, y: cy + p.screenY };
+    });
+    omniCtx.strokeStyle = 'rgba(223, 186, 82, 0.6)';
+    omniCtx.lineWidth = 1;
+    omniCtx.beginPath();
+    omniCtx.moveTo(innerPts[0].x, innerPts[0].y);
+    for (let i = 1; i < 4; i++) omniCtx.lineTo(innerPts[i].x, innerPts[i].y);
+    omniCtx.closePath();
+    omniCtx.stroke();
+
     const centerPoint = project3DtoIso({ x: game.player.x, y: game.player.y, z: 0 }, scale);
     omniCtx.font = 'bold 10px serif';
-    omniCtx.fillStyle = '#1a2634';
+    omniCtx.fillStyle = '#1e293b';
     omniCtx.textAlign = 'center';
     omniCtx.fillText('正方形绅士', cx + centerPoint.screenX, cy + centerPoint.screenY - 14);
   }
 
-  // -------------------------------------------------------------
-  // 柔和探照视锥（消除突兀竖杆）
-  // -------------------------------------------------------------
+  // 前沿平直边微光与短小典雅视标
   const centerP = project3DtoIso({ x: game.player.x, y: game.player.y, z: game.currentZ }, scale);
   const px = cx + centerP.screenX;
   const py = cy + centerP.screenY;
+  const hDist = 1.6;
+  const hx = game.player.x + Math.cos(game.player.angle) * hDist;
+  const hy = game.player.y + Math.sin(game.player.angle) * hDist;
+  const hp = project3DtoIso({ x: hx, y: hy, z: game.currentZ }, scale);
 
-  const fovRad = Math.PI / 4;
-  const coneDist = 2.4;
-  const coneLeft = project3DtoIso({
-    x: game.player.x + Math.cos(game.player.angle - fovRad / 2) * coneDist,
-    y: game.player.y + Math.sin(game.player.angle - fovRad / 2) * coneDist,
-    z: game.currentZ,
-  }, scale);
-  const coneRight = project3DtoIso({
-    x: game.player.x + Math.cos(game.player.angle + fovRad / 2) * coneDist,
-    y: game.player.y + Math.sin(game.player.angle + fovRad / 2) * coneDist,
-    z: game.currentZ,
-  }, scale);
-  const coneApex = project3DtoIso({
-    x: game.player.x + Math.cos(game.player.angle) * (coneDist + 0.3),
-    y: game.player.y + Math.sin(game.player.angle) * (coneDist + 0.3),
-    z: game.currentZ,
-  }, scale);
-
-  omniCtx.fillStyle = 'rgba(212, 175, 55, 0.12)';
+  omniCtx.strokeStyle = '#d4af37';
+  omniCtx.lineWidth = 1.4;
   omniCtx.beginPath();
   omniCtx.moveTo(px, py);
-  omniCtx.lineTo(cx + coneLeft.screenX, cy + coneLeft.screenY);
-  omniCtx.lineTo(cx + coneApex.screenX, cy + coneApex.screenY);
-  omniCtx.lineTo(cx + coneRight.screenX, cy + coneRight.screenY);
-  omniCtx.closePath();
-  omniCtx.fill();
+  omniCtx.lineTo(cx + hp.screenX, cy + hp.screenY);
+  omniCtx.stroke();
 
-  const tipX = cx + coneApex.screenX;
-  const tipY = cy + coneApex.screenY;
+  // 视标微菱
+  const tipX = cx + hp.screenX;
+  const tipY = cy + hp.screenY;
   omniCtx.fillStyle = '#d4af37';
   omniCtx.beginPath();
-  omniCtx.moveTo(tipX, tipY - 4);
-  omniCtx.lineTo(tipX + 3, tipY);
-  omniCtx.lineTo(tipX, tipY + 4);
-  omniCtx.lineTo(tipX - 3, tipY);
+  omniCtx.moveTo(tipX, tipY - 3);
+  omniCtx.lineTo(tipX + 2.5, tipY);
+  omniCtx.lineTo(tipX, tipY + 3);
+  omniCtx.lineTo(tipX - 2.5, tipY);
   omniCtx.closePath();
   omniCtx.fill();
-
-  // -------------------------------------------------------------
-  // 球体导师神圣降临投影 (建议 5 显圣)
-  // -------------------------------------------------------------
-  if (game.energy >= 100) {
-    const sphereY = 32;
-    const sphereX = w / 2;
-    const gradSphere = omniCtx.createRadialGradient(
-      sphereX - 4, sphereY - 4, 3,
-      sphereX, sphereY, 22
-    );
-    gradSphere.addColorStop(0, '#ffffff');
-    gradSphere.addColorStop(0.3, '#ffea88');
-    gradSphere.addColorStop(0.8, '#b38022');
-    gradSphere.addColorStop(1, 'rgba(140, 109, 59, 0)');
-
-    omniCtx.fillStyle = gradSphere;
-    omniCtx.beginPath();
-    omniCtx.arc(sphereX, sphereY, 24, 0, Math.PI * 2);
-    omniCtx.fill();
-
-    omniCtx.font = 'bold 9px serif';
-    omniCtx.fillStyle = '#8c6d3b';
-    omniCtx.textAlign = 'center';
-    omniCtx.fillText('【天界球体导师·显圣投影】', sphereX, sphereY + 26);
-  }
 }
 
 // =========================================================================
-// 下屏：第一人称迷雾视界（连续平滑光带、等腰尖端柔和漫射光斑、天界晨曦）
+// 下屏：第一人称迷雾真实物理模拟（纯净微薄视网膜槽，绝无红灯泡与怪虫）
 // =========================================================================
 function renderSubjectiveFogView(): void {
   const w = subjCanvas.width;
@@ -541,51 +576,36 @@ function renderSubjectiveFogView(): void {
   const hudHeight = 36;
   const horizonY = (h - hudHeight) / 2;
 
-  // 中央微薄视界槽底带
-  subjCtx.fillStyle = '#cfc3a9';
-  subjCtx.fillRect(0, horizonY - 26, w, 52);
+  // 中央一维感光物理视网膜槽（高度收窄至 14px，平直微薄）
+  const slotHeight = 14;
+  const slotTop = horizonY - slotHeight / 2;
+  const slotBottom = horizonY + slotHeight / 2;
 
-  // 天界东方脱逃晨曦圣光 (当面朝东向出口时浮现)
-  const angleNormalized = (((game.player.angle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-  const facingEastFactor = Math.max(0, Math.cos(angleNormalized)); // 朝向 0° 时为 1
-  if (facingEastFactor > 0.4) {
-    const dawnAlpha = (facingEastFactor - 0.4) * 0.45;
-    const dawnGrad = subjCtx.createRadialGradient(
-      w / 2, horizonY, 2,
-      w / 2, horizonY, 80
-    );
-    dawnGrad.addColorStop(0, `rgba(255, 235, 150, ${dawnAlpha * 1.5})`);
+  // 视网膜槽纯净背景雾霭
+  subjCtx.fillStyle = '#c5b89c';
+  subjCtx.fillRect(0, slotTop, w, slotHeight);
+
+  // 天界东方脱逃晨曦圣光 (面朝东时，地平微薄光带中央泛起天界金辉)
+  const angleNorm = (((game.player.angle) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const facingEast = Math.max(0, Math.cos(angleNorm));
+  if (facingEast > 0.35) {
+    const dawnAlpha = (facingEast - 0.35) * 0.45;
+    const dawnGrad = subjCtx.createLinearGradient(w / 2 - 60, 0, w / 2 + 60, 0);
+    dawnGrad.addColorStop(0, 'rgba(212, 175, 55, 0)');
+    dawnGrad.addColorStop(0.5, `rgba(255, 235, 140, ${dawnAlpha})`);
     dawnGrad.addColorStop(1, 'rgba(212, 175, 55, 0)');
     subjCtx.fillStyle = dawnGrad;
-    subjCtx.beginPath();
-    subjCtx.arc(w / 2, horizonY, 80, 0, Math.PI * 2);
-    subjCtx.fill();
+    subjCtx.fillRect(w / 2 - 60, slotTop, 120, slotHeight);
   }
 
   const rawRays = game.getFogRays(96);
   const rayCount = rawRays.length;
   const colWidth = w / rayCount;
 
-  // 3 点相邻滑动平滑插值 (消除突兀硬切阶梯)
-  const smoothHeights: number[] = new Array(rayCount);
-  const smoothAlphas: number[] = new Array(rayCount);
-  const isApexHighlights: boolean[] = new Array(rayCount);
-
-  let maxApexProximity = 0;
-  let hasNearIsosceles = false;
-  let peakApexRayIndex = -1;
-
-  for (let i = 0; i < rayCount; i++) {
-    const ray = rawRays[i];
-    if (ray.hitType === 'isosceles') {
-      hasNearIsosceles = true;
-      const apexP = ray.apexProximity || 0;
-      if (apexP > maxApexProximity) {
-        maxApexProximity = apexP;
-        peakApexRayIndex = i;
-      }
-    }
-  }
+  // 真实物理 Beer-Lambert 光学衰减与平滑插值
+  const smoothIntensities: number[] = new Array(rayCount);
+  const hitTypes: ('wall' | 'isosceles')[] = new Array(rayCount);
+  let isAnyIsoscelesNear = false;
 
   for (let i = 0; i < rayCount; i++) {
     const prev = rawRays[Math.max(0, i - 1)];
@@ -593,122 +613,69 @@ function renderSubjectiveFogView(): void {
     const next = rawRays[Math.min(rayCount - 1, i + 1)];
 
     const avgDist = (prev.distance + curr.distance * 2 + next.distance) / 4;
-    const avgBright = (prev.brightness + curr.brightness * 2 + next.brightness) / 4;
-    const avgApex = ((prev.apexProximity || 0) + (curr.apexProximity || 0) * 2 + (next.apexProximity || 0)) / 4;
+    // 物理 Beer-Lambert 指数衰减模拟：近清晰、远模糊
+    const opticalDensity = Math.exp(-0.22 * avgDist);
 
-    const distFactor = Math.min(1, 1 / (avgDist * Math.cos(curr.angleOffset)));
-    let beamHeight = Math.max(4, Math.min(20, 4 + distFactor * 14));
-
-    if (curr.hitType === 'isosceles') {
-      if (avgApex > 0.4) {
-        beamHeight = Math.min(24, beamHeight + avgApex * 5);
-        isApexHighlights[i] = true;
-      } else {
-        beamHeight = Math.max(3, beamHeight * 0.7);
-        isApexHighlights[i] = false;
-      }
-    } else {
-      isApexHighlights[i] = false;
-    }
-
-    smoothHeights[i] = beamHeight;
-    smoothAlphas[i] = Math.max(0.12, Math.min(1, avgBright * 0.9));
+    smoothIntensities[i] = Math.max(0, Math.min(1, opticalDensity));
+    hitTypes[i] = curr.hitType === 'isosceles' ? 'isosceles' : 'wall';
+    if (curr.hitType === 'isosceles') isAnyIsoscelesNear = true;
   }
 
-  // 绘制平滑连续光带多边形 (建议 4 消除突兀)
+  // 物理微薄光带渲染（没有红灯笼！没有怪虫！仅有平滑自然的暗度折痕）
   for (let i = 0; i < rayCount - 1; i++) {
     const x1 = i * colWidth;
     const x2 = (i + 1) * colWidth;
-    const h1 = smoothHeights[i];
-    const h2 = smoothHeights[i + 1];
-    const top1 = horizonY - h1 / 2;
-    const btm1 = horizonY + h1 / 2;
-    const top2 = horizonY - h2 / 2;
-    const btm2 = horizonY + h2 / 2;
+    const intensity = smoothIntensities[i];
+    const type = hitTypes[i];
 
-    const currRay = rawRays[i];
-    if (currRay.distance < Infinity) {
-      if (currRay.hitType === 'isosceles') {
-        if (isApexHighlights[i]) {
-          // 顶角刺目红芒
-          subjCtx.fillStyle = `rgba(255, 45, 45, ${smoothAlphas[i] * 1.3})`;
-        } else {
-          // 两翼暗红深雾
-          subjCtx.fillStyle = `rgba(130, 25, 25, ${smoothAlphas[i] * 0.6})`;
-        }
+    if (rawRays[i].distance < Infinity) {
+      if (type === 'isosceles') {
+        // 等腰尖刃：原著中尖端最先穿透雾霭，呈现一处极窄深沉森冷的暗红折痕
+        const alpha = Math.min(0.9, intensity * 1.1);
+        subjCtx.fillStyle = `rgba(105, 20, 20, ${alpha})`;
       } else {
-        // 石墙
-        subjCtx.fillStyle = `rgba(26, 22, 17, ${smoothAlphas[i]})`;
+        // 石墙：平整均匀的深墨灰色高墙阴影
+        const alpha = Math.min(0.85, intensity * 0.95);
+        subjCtx.fillStyle = `rgba(28, 22, 18, ${alpha})`;
       }
 
-      subjCtx.beginPath();
-      subjCtx.moveTo(x1, top1);
-      subjCtx.lineTo(x2, top2);
-      subjCtx.lineTo(x2, btm2);
-      subjCtx.lineTo(x1, btm1);
-      subjCtx.closePath();
-      subjCtx.fill();
+      subjCtx.fillRect(x1, slotTop, (x2 - x1) + 0.6, slotHeight);
     }
   }
 
-  // 等腰顶角柔和径向辉光 (Soft Radial Apex Bloom)
-  if (peakApexRayIndex >= 0 && maxApexProximity > 0.4) {
-    const apexCenterX = peakApexRayIndex * colWidth;
-    const glowGrad = subjCtx.createRadialGradient(
-      apexCenterX, horizonY, 1,
-      apexCenterX, horizonY, 26
-    );
-    glowGrad.addColorStop(0, 'rgba(255, 240, 240, 0.95)');
-    glowGrad.addColorStop(0.35, 'rgba(255, 40, 40, 0.7)');
-    glowGrad.addColorStop(1, 'rgba(180, 20, 20, 0)');
+  // 纯净视网膜槽青铜边框
+  subjCtx.strokeStyle = '#8c6d3b';
+  subjCtx.lineWidth = 1.2;
+  subjCtx.strokeRect(0, slotTop, w, slotHeight);
 
-    subjCtx.fillStyle = glowGrad;
-    subjCtx.beginPath();
-    subjCtx.arc(apexCenterX, horizonY, 26, 0, Math.PI * 2);
-    subjCtx.fill();
-  }
-
-  // 视界槽基准细线
-  subjCtx.strokeStyle = 'rgba(140, 109, 59, 0.3)';
+  // 视网膜槽正中央基准细线
+  subjCtx.strokeStyle = 'rgba(140, 109, 59, 0.35)';
   subjCtx.lineWidth = 1;
   subjCtx.beginPath();
   subjCtx.moveTo(0, horizonY);
   subjCtx.lineTo(w, horizonY);
   subjCtx.stroke();
 
-  // 视界槽青铜上下边条
-  subjCtx.strokeStyle = '#8c6d3b';
-  subjCtx.lineWidth = 1;
-  subjCtx.beginPath();
-  subjCtx.moveTo(0, horizonY - 26);
-  subjCtx.lineTo(w, horizonY - 26);
-  subjCtx.moveTo(0, horizonY + 26);
-  subjCtx.lineTo(w, horizonY + 26);
-  subjCtx.stroke();
-
-  // 视界上方实时手稿提示
+  // 视界上方古典手稿辨形指示
   subjCtx.font = '10px serif';
   subjCtx.textAlign = 'center';
-  if (hasNearIsosceles && maxApexProximity > 0.5) {
-    subjCtx.fillStyle = '#8b1e1e';
-    subjCtx.fillText('【雾中辨角】“尖角分外刺目明亮，两翼急剧暗淡隐雾——等腰士兵！”', w / 2, horizonY - 30);
-  } else if (hasNearIsosceles) {
-    subjCtx.fillStyle = '#6e451e';
-    subjCtx.fillText('【雾中辨角】“远处微红暗影浮动，锐角未明……”', w / 2, horizonY - 30);
-  } else if (facingEastFactor > 0.7) {
+  if (isAnyIsoscelesNear) {
+    subjCtx.fillStyle = '#7a1818';
+    subjCtx.fillText('【雾中辨角】“狭窄暗刃急剧隐入深雾——此乃等腰士兵！”', w / 2, slotTop - 12);
+  } else if (facingEast > 0.65) {
     subjCtx.fillStyle = '#b38022';
-    subjCtx.fillText('【神域感召】“东方尽头微光拂动，乃天界脱逃之门。”', w / 2, horizonY - 30);
+    subjCtx.fillText('【神域感召】“东方晨曦浮现，乃天界脱逃之门。”', w / 2, slotTop - 12);
   } else {
     subjCtx.fillStyle = '#5c4e3a';
-    subjCtx.fillText('【雾中辨形】“平直暗影，明暗均等——石牢坚壁。”', w / 2, horizonY - 30);
+    subjCtx.fillText('【雾中辨形】“平直暗影，明暗均等——石牢坚壁。”', w / 2, slotTop - 12);
   }
 
   // -------------------------------------------------------------
-  // 正方形绅士第一人称前沿 HUD (90° 直角与方位仪)
+  // 正方形绅士第一人称前沿 HUD (90° 直角与平直外壁刻度)
   // -------------------------------------------------------------
   const hudY = h - hudHeight;
 
-  subjCtx.fillStyle = '#1c2733';
+  subjCtx.fillStyle = '#1e293b';
   subjCtx.fillRect(0, hudY, w, hudHeight);
 
   subjCtx.strokeStyle = '#c8963e';
@@ -718,7 +685,7 @@ function renderSubjectiveFogView(): void {
   subjCtx.lineTo(w, hudY);
   subjCtx.stroke();
 
-  // 左右直角 90° 标记
+  // 左右直角 90° 标志
   subjCtx.strokeStyle = '#d4af37';
   subjCtx.lineWidth = 2;
   subjCtx.strokeRect(10, hudY + 7, 13, 13);
