@@ -34,6 +34,9 @@ const coordinator = new LevelCoordinator();
 const lineland = coordinator.lineland;
 const escapeGame = coordinator.escape;
 
+// 直线国第一人称当前视线朝向：FORWARD(前视国王) | BACKWARD(后视邻人)
+let linelandLookDir: 'FORWARD' | 'BACKWARD' = 'FORWARD';
+
 // 第一幕（石牢脱逃）神谕金菱圣印
 interface Fragment {
   x: number;
@@ -120,9 +123,9 @@ function handleSpecialAction(): void {
   if (coordinator.currentLevelId === GameLevelId.LINELAND_PROLOGUE) {
     if (lineland.canStepSideways) {
       lineland.stepSideways();
-      dialogueStrip.textContent = '“【突破一维】你在不可思议的‘侧向’踏出一步，在直线国民众眼前凭空消失！”';
+      dialogueStrip.textContent = '“【突破一维】你在不可思议的‘侧向’踏出一步，在直线上凭空消失！”';
     } else {
-      dialogueStrip.textContent = '“前后尚未彻底死锁，你还无法打破一维心智的桎梏！”';
+      dialogueStrip.textContent = '“尚未探明前后绝路！请先按 W 前进并按 S 后退以觉醒侧向感知！”';
     }
   } else {
     const success = escapeGame.requestAscension();
@@ -198,25 +201,48 @@ function gameLoop(now: number): void {
 
   if (coordinator.currentLevelId === GameLevelId.LINELAND_PROLOGUE) {
     // -------------------------------------------------------------
-    // 序幕：直线国之梦逻辑更新
+    // 序幕：直线国之梦逻辑更新（遵从原著与新物理规律）
     // -------------------------------------------------------------
-    if (turn !== 0) {
-      lineland.move(turn, 0, dt);
+    // 1. W / S 控制沿直线前进与后退
+    if (forward !== 0) {
+      lineland.moveAxis(forward, dt);
+      if (forward > 0) {
+        linelandLookDir = 'FORWARD';
+      } else {
+        linelandLookDir = 'BACKWARD';
+      }
     }
-    // 上下方向键也可尝试触发侧移顿悟
-    if (forward > 0 && lineland.canStepSideways && !lineland.isSidestepping) {
-      lineland.stepSideways();
+
+    // 2. A / D 控制向线段两侧侧移（只有前后都移动过才解锁）
+    if (turn !== 0) {
+      if (lineland.canStepSideways) {
+        // A (turn < 0): 向左上侧面 (+1)；D (turn > 0): 向右下侧面 (-1)
+        const lateralDir = turn < 0 ? 1 : -1;
+        lineland.moveLateral(lateralDir, dt);
+      } else {
+        dialogueStrip.textContent = '“【心智局限】你尚未探明前后绝路！请先按 W 前进并按 S 后退探寻生路！”';
+      }
     }
 
     coordinator.update(dt);
     dialogueStrip.textContent = lineland.soliloquy;
 
-    // 危机水银管
-    const corridor = lineland.king.x - lineland.neighbor.x;
-    const crisis = Math.max(0, Math.min(100, ((5.0 - corridor) / 2.8) * 100));
-    gaugeLabel.textContent = '死锁:';
-    mercuryBar.style.width = `${Math.round(crisis)}%`;
+    // 水银管：展示探索进度与死锁觉醒
+    gaugeLabel.textContent = '探索:';
+    if (lineland.isSidestepping) {
+      mercuryBar.style.width = '100%';
+      gaugeLabel.textContent = '高维:';
+    } else if (lineland.canStepSideways) {
+      mercuryBar.style.width = '100%';
+      gaugeLabel.textContent = '觉醒:';
+    } else {
+      let progress = 0;
+      if (lineland.hasMovedForward) progress += 50;
+      if (lineland.hasMovedBackward) progress += 50;
+      mercuryBar.style.width = `${progress}%`;
+    }
 
+    // 右下角按钮觉醒逻辑
     if (lineland.isSidestepping) {
       btnAscend.classList.remove('btn-sealed');
       btnAscend.classList.add('charged');
@@ -225,13 +251,13 @@ function gameLoop(now: number): void {
     } else if (lineland.canStepSideways) {
       btnAscend.classList.remove('btn-sealed');
       btnAscend.classList.add('charged');
-      btnAscendText.textContent = '向侧面，而不是向前';
-      btnAscendSub.textContent = '(领悟维度 · 侧向跳脱)';
+      btnAscendText.textContent = '按 A 或 D 侧移';
+      btnAscendSub.textContent = '(维度觉醒 · 脱离直线)';
     } else {
       btnAscend.classList.add('btn-sealed');
       btnAscend.classList.remove('charged');
-      btnAscendText.textContent = '心智死锁中';
-      btnAscendSub.textContent = '(前后皆无路)';
+      btnAscendText.textContent = '一维局限中';
+      btnAscendSub.textContent = '(需先试探 W 与 S)';
     }
 
     // 结算判定
@@ -257,7 +283,6 @@ function gameLoop(now: number): void {
     // -------------------------------------------------------------
     escapeGame.movePlayer(forward, turn, dt);
 
-    // 碎片收集与球体导师圣音降临
     for (let i = 0; i < fragments.length; i++) {
       const f = fragments[i];
       if (!f.collected) {
@@ -321,7 +346,7 @@ function gameLoop(now: number): void {
 }
 
 // =========================================================================
-// 序幕渲染：直线国之梦（上屏剖面沙盘 + 下屏纯一维视网膜）
+// 序幕渲染：直线国之梦（倾斜沙盘 + 原著线段/质点 + 物理第一人称变换）
 // =========================================================================
 function renderLinelandOmniView(): void {
   const w = omniCanvas.width;
@@ -332,147 +357,235 @@ function renderLinelandOmniView(): void {
   omniCtx.fillStyle = '#f8f4e8';
   omniCtx.fillRect(0, 0, w, h);
 
-  const cx = w / 2;
-  const lineY = h / 2 + 15;
-  const unitPx = 34; // 比例尺
+  // 1. 直线轴线：从左下到右上倾斜
+  // 起点 P1 = (45, h - 45)，终点 P2 = (w - 45, 45)
+  const pStart = { x: 45, y: h - 45 };
+  const pEnd = { x: w - 45, y: 45 };
 
-  // 1. 直线宇宙基准主线（单一直线世界）
-  omniCtx.strokeStyle = 'rgba(140, 109, 59, 0.2)';
-  omniCtx.lineWidth = 12;
+  const dx = pEnd.x - pStart.x;
+  const dy = pEnd.y - pStart.y;
+  const theta = Math.atan2(dy, dx);
+  const u = { x: Math.cos(theta), y: Math.sin(theta) }; // 轴向单位向量（向右上）
+  const v = { x: u.y, y: -u.x }; // 侧向单位向量（垂直向左上）
+
+  const pCenter = { x: (pStart.x + pEnd.x) / 2 - 15, y: (pStart.y + pEnd.y) / 2 + 10 };
+  const axisScale = 17.5;
+  const latScale = 24.0;
+
+  function toScreen(x: number, y: number): { x: number; y: number } {
+    return {
+      x: pCenter.x + x * axisScale * u.x + y * latScale * v.x,
+      y: pCenter.y + x * axisScale * u.y + y * latScale * v.y,
+    };
+  }
+
+  // 绘制单一直线基准轴
+  omniCtx.strokeStyle = 'rgba(140, 109, 59, 0.22)';
+  omniCtx.lineWidth = 14;
   omniCtx.lineCap = 'round';
   omniCtx.beginPath();
-  omniCtx.moveTo(20, lineY);
-  omniCtx.lineTo(w - 20, lineY);
+  omniCtx.moveTo(pStart.x, pStart.y);
+  omniCtx.lineTo(pEnd.x, pEnd.y);
   omniCtx.stroke();
 
   omniCtx.strokeStyle = '#1a1611';
-  omniCtx.lineWidth = 2.4;
+  omniCtx.lineWidth = 2.6;
   omniCtx.beginPath();
-  omniCtx.moveTo(20, lineY);
-  omniCtx.lineTo(w - 20, lineY);
+  omniCtx.moveTo(pStart.x, pStart.y);
+  omniCtx.lineTo(pEnd.x, pEnd.y);
   omniCtx.stroke();
 
-  // 刻度线与世界边界
-  omniCtx.strokeStyle = 'rgba(140, 109, 59, 0.4)';
+  // 刻度线
+  omniCtx.strokeStyle = 'rgba(140, 109, 59, 0.45)';
   omniCtx.lineWidth = 1;
-  for (let x = -5; x <= 5; x += 1) {
-    const px = cx + x * unitPx;
+  for (let x = -6; x <= 8; x += 1) {
+    const sp = toScreen(x, 0);
     omniCtx.beginPath();
-    omniCtx.moveTo(px, lineY - 4);
-    omniCtx.lineTo(px, lineY + 4);
+    omniCtx.moveTo(sp.x - v.x * 5, sp.y - v.y * 5);
+    omniCtx.lineTo(sp.x + v.x * 5, sp.y + v.y * 5);
     omniCtx.stroke();
   }
 
-  // 2. 暴躁平民邻人（暗红线段）
-  const nX = cx + lineland.neighbor.x * unitPx;
-  omniCtx.strokeStyle = '#8b1e1e';
-  omniCtx.lineWidth = 6;
-  omniCtx.lineCap = 'round';
+  // 直线两端哲学边界
+  omniCtx.font = '9px serif';
+  omniCtx.fillStyle = '#64748b';
+  omniCtx.textAlign = 'left';
+  omniCtx.fillText('【左下：暴躁后方】', pStart.x - 10, pStart.y + 18);
+  omniCtx.textAlign = 'right';
+  omniCtx.fillText('【右上：王国极境】', pEnd.x + 10, pEnd.y - 12);
+
+  // 2. 暴躁邻人：原著设定为【质点】（位于左下）
+  const nbrPt = toScreen(lineland.neighbor.x, 0);
+  const time = Date.now() / 400;
+
+  // 邻人警示红芒光圈
+  const nbrGlow = 8 + (Math.sin(time * 4) + 1) * 3;
+  omniCtx.fillStyle = 'rgba(180, 30, 30, 0.22)';
   omniCtx.beginPath();
-  omniCtx.moveTo(nX - 16, lineY);
-  omniCtx.lineTo(nX, lineY);
+  omniCtx.arc(nbrPt.x, nbrPt.y, nbrGlow, 0, Math.PI * 2);
+  omniCtx.fill();
+
+  // 质点刺尖徽记
+  omniCtx.strokeStyle = '#8b1e1e';
+  omniCtx.lineWidth = 1.6;
+  omniCtx.beginPath();
+  omniCtx.moveTo(nbrPt.x - 7 * u.x, nbrPt.y - 7 * u.y);
+  omniCtx.lineTo(nbrPt.x + 7 * u.x, nbrPt.y + 7 * u.y);
+  omniCtx.moveTo(nbrPt.x - 5 * v.x, nbrPt.y - 5 * v.y);
+  omniCtx.lineTo(nbrPt.x + 5 * v.x, nbrPt.y + 5 * v.y);
   omniCtx.stroke();
 
-  // 尖刺箭头
-  omniCtx.fillStyle = '#8b1e1e';
+  // 质点纯红核心
+  omniCtx.fillStyle = '#e11d48';
   omniCtx.beginPath();
-  omniCtx.moveTo(nX + 2, lineY);
-  omniCtx.lineTo(nX - 4, lineY - 4);
-  omniCtx.lineTo(nX - 4, lineY + 4);
-  omniCtx.closePath();
+  omniCtx.arc(nbrPt.x, nbrPt.y, 4, 0, Math.PI * 2);
   omniCtx.fill();
+  omniCtx.strokeStyle = '#881337';
+  omniCtx.lineWidth = 1.2;
+  omniCtx.stroke();
 
   omniCtx.font = 'bold 10px serif';
   omniCtx.fillStyle = '#8b1e1e';
   omniCtx.textAlign = 'center';
-  omniCtx.fillText('【暴躁邻人】', nX - 8, lineY - 14);
+  omniCtx.fillText('【暴躁邻人 · 质点】', nbrPt.x - v.x * 16, nbrPt.y - v.y * 16);
 
-  // 3. 线之国王（威严金色质点与声波环）
-  const kX = cx + lineland.king.x * unitPx;
-  const time = Date.now() / 600;
-  // 声波光环
+  // 3. 线之国王：原著设定为【漫长尊贵线段】（位于右上）
+  const kStart = toScreen(lineland.king.startX, 0);
+  const kEnd = toScreen(lineland.king.endX, 0);
+
+  // 国王皇室金色光晕
+  omniCtx.strokeStyle = 'rgba(212, 175, 55, 0.35)';
+  omniCtx.lineWidth = 12;
+  omniCtx.lineCap = 'round';
+  omniCtx.beginPath();
+  omniCtx.moveTo(kStart.x, kStart.y);
+  omniCtx.lineTo(kEnd.x, kEnd.y);
+  omniCtx.stroke();
+
+  // 国王金色长线段本体
+  omniCtx.strokeStyle = '#b38022';
+  omniCtx.lineWidth = 5;
+  omniCtx.lineCap = 'round';
+  omniCtx.beginPath();
+  omniCtx.moveTo(kStart.x, kStart.y);
+  omniCtx.lineTo(kEnd.x, kEnd.y);
+  omniCtx.stroke();
+
+  // 国王内沿细金纹
+  omniCtx.strokeStyle = '#fef08a';
+  omniCtx.lineWidth = 1.8;
+  omniCtx.beginPath();
+  omniCtx.moveTo(kStart.x, kStart.y);
+  omniCtx.lineTo(kEnd.x, kEnd.y);
+  omniCtx.stroke();
+
+  // 国王两端皇室端点徽印
+  for (const pt of [kStart, kEnd]) {
+    omniCtx.fillStyle = '#d4af37';
+    omniCtx.strokeStyle = '#5a3d0e';
+    omniCtx.lineWidth = 1.2;
+    omniCtx.beginPath();
+    omniCtx.arc(pt.x, pt.y, 4.5, 0, Math.PI * 2);
+    omniCtx.fill();
+    omniCtx.stroke();
+  }
+
+  // 国王同心声阶环
   const waveR = 8 + (Math.sin(time * 3) + 1) * 4;
-  omniCtx.strokeStyle = 'rgba(212, 175, 55, 0.5)';
-  omniCtx.lineWidth = 1.2;
+  omniCtx.strokeStyle = 'rgba(212, 175, 55, 0.45)';
+  omniCtx.lineWidth = 1;
   omniCtx.beginPath();
-  omniCtx.arc(kX, lineY, waveR, 0, Math.PI * 2);
+  omniCtx.arc(kStart.x, kStart.y, waveR, 0, Math.PI * 2);
   omniCtx.stroke();
 
-  // 国王本体金印
-  omniCtx.fillStyle = '#b38022';
-  omniCtx.beginPath();
-  omniCtx.arc(kX, lineY, 5, 0, Math.PI * 2);
-  omniCtx.fill();
-  omniCtx.strokeStyle = '#5a3d0e';
-  omniCtx.lineWidth = 1.5;
-  omniCtx.stroke();
-
+  const kMid = { x: (kStart.x + kEnd.x) / 2, y: (kStart.y + kEnd.y) / 2 };
   omniCtx.font = 'bold 10px serif';
   omniCtx.fillStyle = '#7a5214';
   omniCtx.textAlign = 'center';
-  omniCtx.fillText('【线之国王】', kX, lineY - 14);
+  omniCtx.fillText('【线之国王 · 长线段】', kMid.x + v.x * 16, kMid.y + v.y * 16);
 
-  // 4. 梦境裂隙终点（出口）
-  const exitPx = cx + lineland.exitX * unitPx;
+  // 4. 梦境裂隙（出口）
+  const exitPt = toScreen(lineland.exitX, 0);
   omniCtx.strokeStyle = '#d4af37';
-  omniCtx.lineWidth = 2;
+  omniCtx.lineWidth = 2.2;
   omniCtx.beginPath();
-  omniCtx.moveTo(exitPx, lineY - 22);
-  omniCtx.lineTo(exitPx + 6, lineY);
-  omniCtx.lineTo(exitPx, lineY + 22);
-  omniCtx.lineTo(exitPx - 6, lineY);
+  omniCtx.moveTo(exitPt.x - 8 * u.x, exitPt.y - 8 * u.y);
+  omniCtx.lineTo(exitPt.x + 8 * v.x, exitPt.y + 8 * v.y);
+  omniCtx.lineTo(exitPt.x + 8 * u.x, exitPt.y + 8 * u.y);
+  omniCtx.lineTo(exitPt.x - 8 * v.x, exitPt.y - 8 * v.y);
   omniCtx.closePath();
   omniCtx.stroke();
 
   omniCtx.font = 'bold 10px serif';
   omniCtx.fillStyle = '#b38022';
-  omniCtx.fillText('【梦境裂隙】', exitPx, lineY - 28);
+  omniCtx.textAlign = 'center';
+  omniCtx.fillText('【梦境裂隙】', exitPt.x + v.x * 20, exitPt.y + v.y * 20);
 
-  // 5. 正方形绅士（象牙米白微方）
-  const pX = cx + lineland.player.x * unitPx;
-  const pY = lineY - lineland.player.y * unitPx;
+  // 5. 正方形绅士：原著设定在直线国呈现为【一条学者线段】
+  const p1 = toScreen(lineland.player.x - lineland.player.length / 2, lineland.player.y);
+  const p2 = toScreen(lineland.player.x + lineland.player.length / 2, lineland.player.y);
+  const pMid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
 
+  // 若处于侧移状态，绘制高维投影虚线导轨
   if (lineland.isSidestepping) {
-    // 侧移虚线光梯
-    omniCtx.setLineDash([4, 3]);
-    omniCtx.strokeStyle = 'rgba(212, 175, 55, 0.7)';
-    omniCtx.lineWidth = 1.5;
+    const orig1 = toScreen(lineland.player.x - lineland.player.length / 2, 0);
+    const orig2 = toScreen(lineland.player.x + lineland.player.length / 2, 0);
+
+    omniCtx.setLineDash([3, 3]);
+    omniCtx.strokeStyle = 'rgba(212, 175, 55, 0.65)';
+    omniCtx.lineWidth = 1.2;
     omniCtx.beginPath();
-    omniCtx.moveTo(pX, lineY);
-    omniCtx.lineTo(pX, pY);
+    omniCtx.moveTo(orig1.x, orig1.y);
+    omniCtx.lineTo(p1.x, p1.y);
+    omniCtx.moveTo(orig2.x, orig2.y);
+    omniCtx.lineTo(p2.x, p2.y);
     omniCtx.stroke();
     omniCtx.setLineDash([]);
 
-    // 侧面光晕
-    omniCtx.fillStyle = 'rgba(212, 175, 55, 0.18)';
+    // 侧移发光辉晕
+    omniCtx.fillStyle = 'rgba(212, 175, 55, 0.2)';
     omniCtx.beginPath();
-    omniCtx.arc(pX, pY, 18, 0, Math.PI * 2);
+    omniCtx.arc(pMid.x, pMid.y, 16, 0, Math.PI * 2);
     omniCtx.fill();
   }
 
-  // 象牙米白正方形
-  const sz = 16;
-  omniCtx.fillStyle = '#fcfbf7';
-  omniCtx.fillRect(pX - sz / 2, pY - sz / 2, sz, sz);
+  // 绘制主角学者线段（温润象牙米白 + 双层金色封边）
   omniCtx.strokeStyle = '#b38022';
-  omniCtx.lineWidth = 1.5;
-  omniCtx.strokeRect(pX - sz / 2, pY - sz / 2, sz, sz);
+  omniCtx.lineWidth = 4.2;
+  omniCtx.lineCap = 'round';
+  omniCtx.beginPath();
+  omniCtx.moveTo(p1.x, p1.y);
+  omniCtx.lineTo(p2.x, p2.y);
+  omniCtx.stroke();
 
-  // 内部微雕细金方印
-  omniCtx.strokeStyle = '#d4af37';
-  omniCtx.lineWidth = 1;
-  omniCtx.strokeRect(pX - sz / 4, pY - sz / 4, sz / 2, sz / 2);
+  omniCtx.strokeStyle = '#fcfbf7';
+  omniCtx.lineWidth = 2.0;
+  omniCtx.beginPath();
+  omniCtx.moveTo(p1.x, p1.y);
+  omniCtx.lineTo(p2.x, p2.y);
+  omniCtx.stroke();
+
+  // 主角两端金色学者端点
+  for (const pt of [p1, p2]) {
+    omniCtx.fillStyle = '#d4af37';
+    omniCtx.beginPath();
+    omniCtx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
+    omniCtx.fill();
+  }
 
   omniCtx.font = 'bold 10px serif';
   omniCtx.fillStyle = '#3e2c14';
   omniCtx.textAlign = 'center';
   if (lineland.isSidestepping) {
-    omniCtx.fillText('【正方形·脱离一维】', pX, pY - 14);
+    omniCtx.fillText('【学者线段 · 跨越一维】', pMid.x - v.x * 16, pMid.y - v.y * 16);
   } else {
-    omniCtx.fillText('【正方形绅士】', pX, lineY + 18);
+    omniCtx.fillText('【学者线段】', pMid.x - v.x * 16, pMid.y - v.y * 16);
   }
 }
 
+// =========================================================================
+// 序幕第一人称渲染：遵从物理规则的前后视角变换
+// =========================================================================
 function renderLinelandSubjView(): void {
   const w = subjCanvas.width;
   const h = subjCanvas.height;
@@ -481,71 +594,87 @@ function renderLinelandSubjView(): void {
   subjCtx.fillStyle = '#1c1813';
   subjCtx.fillRect(0, 0, w, h);
 
-  const horizonY = (h - 36) / 2;
-  const slotHeight = 13; // 统一 13px 纤薄槽
+  const hudHeight = 36;
+  const horizonY = (h - hudHeight) / 2;
+  const slotHeight = 13; // 统一 13px 纤薄视网膜槽
   const slotTop = horizonY - slotHeight / 2;
 
-  // 背景
+  // 纯正一维背景
   subjCtx.fillStyle = '#2d2720';
   subjCtx.fillRect(0, slotTop, w, slotHeight);
 
   const centerX = w / 2;
 
   if (lineland.isSidestepping) {
-    // 突破一维后的高维虚空视野（金色流光开阔）
+    // 突破一维后的高维侧面视野（浅金晨曦流光开阔）
     subjCtx.fillStyle = 'rgba(212, 175, 55, 0.45)';
     subjCtx.fillRect(0, slotTop, w, slotHeight);
   } else {
-    // 纯一维视网膜中央质点光斑
-    const distToKing = Math.max(0.2, lineland.king.x - lineland.player.x);
-    const distToNeighbor = Math.max(0.2, lineland.player.x - lineland.neighbor.x);
+    // 遵从物理规则的一维前后视网膜
+    if (linelandLookDir === 'FORWARD') {
+      // -----------------------------------------------------------
+      // 前视：正视前方线之国王（长线段端点在视网膜中心形成金色辉光）
+      // -----------------------------------------------------------
+      const distToKing = Math.max(0.1, lineland.king.startX - (lineland.player.x + lineland.player.length / 2));
+      const intensity = Math.max(0.12, Math.min(1.0, 1.0 - (distToKing / 8.0)));
 
-    // 计算前方国王光强与后方邻人光强
-    const kingIntensity = Math.max(0.1, Math.min(1.0, 1.0 - distToKing / 4.0));
-    const nbrIntensity = Math.max(0.1, Math.min(1.0, 1.0 - distToNeighbor / 4.0));
+      // 遵循 Beer-Lambert 衰减物理光度
+      const spotW = Math.round(6 + intensity * 45);
+      const grad = subjCtx.createRadialGradient(centerX, horizonY, 1, centerX, horizonY, spotW);
+      grad.addColorStop(0, `rgba(255, 235, 140, ${0.45 + intensity * 0.55})`);
+      grad.addColorStop(0.5, `rgba(212, 175, 55, ${intensity * 0.45})`);
+      grad.addColorStop(1, 'rgba(45, 39, 32, 0)');
 
-    // 中央前方视点（面对国王）
-    const spotW = Math.round(6 + kingIntensity * 36);
-    const grad = subjCtx.createRadialGradient(centerX, horizonY, 1, centerX, horizonY, spotW);
-    grad.addColorStop(0, `rgba(255, 220, 100, ${0.4 + kingIntensity * 0.6})`);
-    grad.addColorStop(0.6, `rgba(200, 150, 40, ${kingIntensity * 0.4})`);
-    grad.addColorStop(1, 'rgba(45, 39, 32, 0)');
+      subjCtx.fillStyle = grad;
+      subjCtx.fillRect(centerX - spotW, slotTop, spotW * 2, slotHeight);
 
-    subjCtx.fillStyle = grad;
-    subjCtx.fillRect(centerX - spotW, slotTop, spotW * 2, slotHeight);
+    } else {
+      // -----------------------------------------------------------
+      // 后视：回视后方暴躁邻人（微小尖锐质点在视网膜中心投下暗红针芒）
+      // -----------------------------------------------------------
+      const distToNbr = Math.max(0.1, (lineland.player.x - lineland.player.length / 2) - lineland.neighbor.x);
+      const intensity = Math.max(0.15, Math.min(1.0, 1.0 - (distToNbr / 8.0)));
 
-    // 邻人从背后的压迫暗红微光边缘
-    if (distToNeighbor < 1.5) {
-      subjCtx.fillStyle = `rgba(180, 30, 30, ${nbrIntensity * 0.7})`;
-      subjCtx.fillRect(0, slotTop, 30, slotHeight);
-      subjCtx.fillRect(w - 30, slotTop, 30, slotHeight);
+      const spotW = Math.round(3 + intensity * 24);
+      const grad = subjCtx.createRadialGradient(centerX, horizonY, 0.5, centerX, horizonY, spotW);
+      grad.addColorStop(0, `rgba(244, 63, 94, ${0.5 + intensity * 0.5})`);
+      grad.addColorStop(0.6, `rgba(180, 30, 30, ${intensity * 0.4})`);
+      grad.addColorStop(1, 'rgba(45, 39, 32, 0)');
+
+      subjCtx.fillStyle = grad;
+      subjCtx.fillRect(centerX - spotW, slotTop, spotW * 2, slotHeight);
     }
   }
 
-  // 青铜边框
+  // 视网膜青铜边框
   subjCtx.strokeStyle = '#8c6d3b';
   subjCtx.lineWidth = 1.2;
   subjCtx.strokeRect(0, slotTop, w, slotHeight);
 
-  // 刻度与注释
+  // 视网膜中心基准准星
   subjCtx.fillStyle = 'rgba(212, 175, 55, 0.7)';
   subjCtx.beginPath();
   subjCtx.arc(centerX, horizonY, 2, 0, Math.PI * 2);
   subjCtx.fill();
 
-  // 状态 HUD
+  // 底部 HUD 状态与物理提示
   subjCtx.fillStyle = '#0f172a';
-  subjCtx.fillRect(0, h - 36, w, 36);
-  subjCtx.fillStyle = 'rgba(212, 175, 55, 0.85)';
+  subjCtx.fillRect(0, h - hudHeight, w, hudHeight);
+
   subjCtx.font = '11px serif';
   subjCtx.textAlign = 'center';
 
   if (lineland.isSidestepping) {
-    subjCtx.fillText('【高维侧面感知】已超越一维直线约束，凡夫俗眼无法洞悉！', centerX, h - 14);
-  } else if (lineland.canStepSideways) {
-    subjCtx.fillText('【前后死锁！】国王与暴躁邻人两端夹杀，唯有跃入侧面！', centerX, h - 14);
+    subjCtx.fillStyle = '#fde047';
+    subjCtx.fillText('【二维侧面展开】已超越一维直线！直线上众生无法企及的高维视野！', centerX, h - 14);
+  } else if (linelandLookDir === 'FORWARD') {
+    subjCtx.fillStyle = 'rgba(212, 175, 55, 0.9)';
+    const distToKing = (lineland.king.startX - (lineland.player.x + lineland.player.length / 2)).toFixed(1);
+    subjCtx.fillText(`【一维前沿正视】正视线之国王长线段之金辉 (前距: ${distToKing})`, centerX, h - 14);
   } else {
-    subjCtx.fillText('【一维视网膜】视野仅此质点 · 随前后距离呈现明暗声调', centerX, h - 14);
+    subjCtx.fillStyle = 'rgba(244, 63, 94, 0.9)';
+    const distToNbr = ((lineland.player.x - lineland.player.length / 2) - lineland.neighbor.x).toFixed(1);
+    subjCtx.fillText(`【一维后沿回视】回视暴躁邻人质点之暗红针芒 (后距: ${distToNbr})`, centerX, h - 14);
   }
 }
 

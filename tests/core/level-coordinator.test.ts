@@ -19,7 +19,7 @@ describe('LevelCoordinator (全局关卡流转与手稿状态机)', () => {
     // 强制序幕胜利
     coordinator.lineland.forceDeadlock();
     coordinator.lineland.stepSideways();
-    coordinator.lineland.player.x = 5.0;
+    coordinator.lineland.player.x = 8.5;
     coordinator.update(0.016);
 
     expect(coordinator.isLevelCompleted).toBe(true);

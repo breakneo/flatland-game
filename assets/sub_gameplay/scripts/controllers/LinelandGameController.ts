@@ -1,109 +1,142 @@
 export type LinelandState = 'PLAYING' | 'VICTORY' | 'DEFEATED';
 
-export interface LineResident {
-  x: number;
-  y: number;
-  speed: number;
-  name: string;
-  phrase: string;
-  minX?: number;
-  maxX?: number;
-}
-
 export class LinelandGameController {
   public gameState: LinelandState = 'PLAYING';
 
+  // 原著设定：主角在直线国是一条长 1.0 的学者线段
   public player = {
     x: 0,
     y: 0,
-    angle: 0,
-    size: 0.6,
+    length: 1.0,
   };
 
-  // 前方：傲慢的直线国国王
-  public king: LineResident = {
-    x: 2.5,
+  // 暴躁邻人：原著中的平民质点（单一位置）
+  public neighbor = {
+    type: 'POINT' as const,
+    x: -5.5,
     y: 0,
-    speed: 0.35,
+    speed: 0.22,
+    name: '暴躁邻人',
+    phrase: '“让开！谁敢后退就刺穿谁！”',
+  };
+
+  // 线之国王：原著中尊贵漫长的皇室长线段
+  public king = {
+    type: 'LINE_SEGMENT' as const,
+    startX: 4.2,
+    endX: 6.8,
+    length: 2.6,
+    y: 0,
+    speed: 0.15,
     name: '线之国王',
     phrase: '“向左即向右，前后即宇宙！休得再提什么虚无的侧面！”',
   };
 
-  // 后方：暴躁的平民邻人
-  public neighbor: LineResident = {
-    x: -2.5,
-    y: 0,
-    speed: 0.45,
-    name: '暴躁平民',
-    phrase: '“让开！往前挤！谁敢停下就刺穿谁！”',
-  };
-
-  public isDeadlocked: boolean = false;
+  // 探索状态记录：只有前后都移动过，方能觉醒侧向维度
+  public hasMovedForward: boolean = false;
+  public hasMovedBackward: boolean = false;
   public canStepSideways: boolean = false;
   public isSidestepping: boolean = false;
-  public sidestepY: number = 0;
 
   // 终点梦境裂隙
-  public exitX: number = 4.5;
+  public exitX: number = 8.0;
 
-  public soliloquy: string = '“你在梦中降落在一维线之国。前后皆被封死，何处容身？”';
+  public soliloquy: string = '“你在梦中降落在一维线之国。试探直线的两端吧（W 前进，S 后退）。”';
 
-  public move(dirX: number, _dirY: number, dt: number): void {
+  public moveAxis(dir: number, dt: number): void {
     if (this.gameState !== 'PLAYING') return;
 
-    const speed = 2.2;
-    const targetX = this.player.x + dirX * speed * dt;
+    if (dir > 0) this.hasMovedForward = true;
+    if (dir < 0) this.hasMovedBackward = true;
+
+    // 前后都试探过之后解锁侧移
+    if (this.hasMovedForward && this.hasMovedBackward) {
+      if (!this.canStepSideways) {
+        this.canStepSideways = true;
+        this.soliloquy = '“【维度顿悟】你已探明两端绝路！试着按 A 或 D 迈向侧面！”';
+      }
+    }
+
+    const speed = 2.6;
+    const targetX = this.player.x + dir * speed * dt;
+    const halfLen = this.player.length / 2;
 
     if (!this.isSidestepping) {
-      // 在直线上，受到国王与邻人的实体碰撞限制（相隔 0.8 距离不可逾越）
-      const minBound = this.neighbor.x + 0.7;
-      const maxBound = this.king.x - 0.7;
+      // 在直线上，受邻人质点与国王长线段前端的严格阻挡
+      const minX = this.neighbor.x + halfLen;
+      const maxX = this.king.startX - halfLen;
 
-      if (targetX < minBound) {
-        this.player.x = minBound;
-      } else if (targetX > maxBound) {
-        this.player.x = maxBound;
+      if (targetX < minX) {
+        this.player.x = minX;
+      } else if (targetX > maxX) {
+        this.player.x = maxX;
       } else {
         this.player.x = targetX;
       }
     } else {
-      // 侧移后脱离一维直线（Y > 0），自由穿透
-      this.player.x = Math.max(-5.0, Math.min(6.0, targetX));
+      // 脱离直线后，无视国王阻挡，自由通向梦境裂隙
+      this.player.x = Math.max(-7.0, Math.min(9.5, targetX));
     }
+  }
+
+  public moveLateral(dir: number, dt: number): void {
+    if (this.gameState !== 'PLAYING') return;
+    if (!this.canStepSideways) return;
+
+    const latSpeed = 2.2;
+    this.player.y += dir * latSpeed * dt;
+
+    if (Math.abs(this.player.y) > 0.5) {
+      this.isSidestepping = true;
+      this.soliloquy = '“【不可思议！】你从直线上消失了！国王惊骇地四处呼喊！”';
+    } else {
+      this.isSidestepping = false;
+    }
+  }
+
+  // 向后兼容接口
+  public move(dirX: number, _dirY: number, dt: number): void {
+    this.moveAxis(dirX, dt);
+  }
+
+  public stepSideways(): boolean {
+    if (!this.canStepSideways) return false;
+    this.player.y = 1.35;
+    this.isSidestepping = true;
+    this.soliloquy = '“【突破一维】你在不可思议的‘侧向’踏出一步，在直线上凭空消失！”';
+    return true;
+  }
+
+  public forceDeadlock(): void {
+    this.hasMovedForward = true;
+    this.hasMovedBackward = true;
+    this.canStepSideways = true;
+    this.soliloquy = '“【两端绝路！】快尝试按 A 或 D 向线段两侧跳脱！”';
   }
 
   public update(dt: number): void {
     if (this.gameState !== 'PLAYING') return;
 
     if (!this.isSidestepping) {
-      // 逼近逻辑：邻人从左向右挤压，国王缓慢向左逼近
-      if (this.neighbor.x < -0.9) {
+      // 邻人质点向内缓慢巡视逼近，国王线段缓缓巡视
+      if (this.neighbor.x < -3.2) {
         this.neighbor.x += this.neighbor.speed * dt;
       }
-      if (this.king.x > 0.9) {
-        this.king.x -= this.king.speed * dt;
+      if (this.king.startX > 3.2) {
+        this.king.startX -= this.king.speed * dt;
+        this.king.endX = this.king.startX + this.king.length;
       }
 
-      // 检测死锁判定：当国王与邻人之间的缝隙被压缩至极限
-      const corridorWidth = this.king.x - this.neighbor.x;
-      if (corridorWidth <= 2.2) {
-        this.isDeadlocked = true;
-        this.canStepSideways = true;
-        this.soliloquy = '“两端死锁！前后无路！快跳脱此线——向侧面挪动一步！”';
-      }
-
-      // 夹伤/被刺死检测
-      if (this.player.x <= this.neighbor.x + 0.1 || this.player.x >= this.king.x - 0.1) {
-        // 如果未侧移且被压碎
-        if (corridorWidth < 1.0) {
-          this.gameState = 'DEFEATED';
-          this.soliloquy = '“你在前后两端的极锐尖端间被挤压解体……”';
+      // 实时更新台词提示
+      if (!this.canStepSideways) {
+        if (!this.hasMovedForward) {
+          this.soliloquy = '“按 W 向前进发，看看直线的尽头有什么。”';
+        } else if (!this.hasMovedBackward) {
+          this.soliloquy = '“前方是不可逾越的国王！按 S 后退探寻生路。”';
         }
       }
     } else {
-      // 侧移状态：Y 坐标稳定在侧向维度
-      this.soliloquy = '“不可思议！你从直线上消失了！国王惊骇地四处张望！”';
-      // 检查通关裂隙
+      // 检查是否越过国王抵达梦境裂隙
       if (this.player.x >= this.exitX) {
         this.gameState = 'VICTORY';
         this.soliloquy = '“你跨越了一维梦境，高维的召唤在你耳边回响……”';
@@ -111,31 +144,16 @@ export class LinelandGameController {
     }
   }
 
-  public stepSideways(): boolean {
-    if (!this.canStepSideways && !this.isDeadlocked) return false;
-    this.isSidestepping = true;
-    this.sidestepY = 1.35;
-    this.player.y = this.sidestepY;
-    return true;
-  }
-
-  public forceDeadlock(): void {
-    this.neighbor.x = -0.9;
-    this.king.x = 0.9;
-    this.isDeadlocked = true;
-    this.canStepSideways = true;
-    this.soliloquy = '“两端死锁！前后无路！快跳脱此线——向侧面挪动一步！”';
-  }
-
   public reset(): void {
     this.gameState = 'PLAYING';
-    this.player = { x: 0, y: 0, angle: 0, size: 0.6 };
-    this.king.x = 2.5;
-    this.neighbor.x = -2.5;
-    this.isDeadlocked = false;
+    this.player = { x: 0, y: 0, length: 1.0 };
+    this.neighbor.x = -5.5;
+    this.king.startX = 4.2;
+    this.king.endX = 4.2 + 2.6;
+    this.hasMovedForward = false;
+    this.hasMovedBackward = false;
     this.canStepSideways = false;
     this.isSidestepping = false;
-    this.sidestepY = 0;
-    this.soliloquy = '“你在梦中降落在一维线之国。前后皆被封死，何处容身？”';
+    this.soliloquy = '“你在梦中降落在一维线之国。试探直线的两端吧（W 前进，S 后退）。”';
   }
 }
