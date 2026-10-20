@@ -11,34 +11,35 @@
     <!-- 顶部信息栏 8% -->
     <header class="header-bar">
       <div class="character-identity">
-        <span class="square-badge">■</span>
-        <span class="identity-text">正方形绅士 · 四等边 · 四直角</span>
+        <span class="square-badge" id="square-badge">■</span>
+        <span class="identity-text" id="identity-text">序幕 · 直线国之梦</span>
       </div>
       <div class="header-right-tools">
-        <div class="oracle-gauge-wrapper">
-          <span>神谕:</span>
+        <div class="oracle-gauge-wrapper" id="oracle-gauge-wrapper">
+          <span id="gauge-label">危机:</span>
           <div class="mercury-tube">
             <div class="mercury-level" id="mercury-bar"></div>
           </div>
         </div>
+        <button id="btn-level-toggle" class="btn-quick-reset" title="切换关卡">幕次</button>
         <button id="btn-quick-reset" class="btn-quick-reset" title="重新开始本幕试炼">重置</button>
       </div>
     </header>
 
     <!-- 上半部 35%：全知神谕沙盘 -->
     <div class="viewport-panel omni-viewport" id="omni-viewport">
-      <div class="panel-tag">全知神谕沙盘 · 三维轴测</div>
+      <div class="panel-tag" id="omni-panel-tag">全知沙盘 · 单一直线世界剖面</div>
       <canvas id="omni-canvas" width="420" height="280"></canvas>
     </div>
 
     <!-- 中部 5%：维多利亚手稿独白条 -->
     <div class="dialogue-strip" id="dialogue-strip">
-      “四面高墙将你锁在平面，何不抬头？”
+      “你在梦中降落在一维线之国。前后皆被封死，何处容身？”
     </div>
 
     <!-- 下半部 35%：肉身迷雾受限视界 -->
     <div class="viewport-panel subj-viewport" id="subj-viewport">
-      <div class="panel-tag">肉身受限感官 · 雾中辨角 (平面微薄视界)</div>
+      <div class="panel-tag" id="subj-panel-tag">肉身感官 · 纯一维中心视网膜</div>
       <canvas id="subj-canvas" width="420" height="270"></canvas>
     </div>
 

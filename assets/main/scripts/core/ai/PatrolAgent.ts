@@ -50,6 +50,10 @@ export class PatrolAgent {
     return this.triangle;
   }
 
+  public getIsoscelesTriangle(): IsoscelesTriangle {
+    return this.triangle;
+  }
+
   public get position(): Point2D {
     return { ...this.pos };
   }

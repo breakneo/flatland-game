@@ -198,4 +198,8 @@ export class EscapeGameController {
       18
     );
   }
+
+  public castRays(rayCount: number = 70): FogRayHit[] {
+    return this.getFogRays(rayCount);
+  }
 }
