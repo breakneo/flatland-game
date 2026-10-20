@@ -40,6 +40,7 @@ const coordinator = new LevelCoordinator();
 const lineland = coordinator.lineland;
 const escapeGame = coordinator.escape;
 const spacelandGame = coordinator.spaceland;
+const pointlandGame = coordinator.pointland;
 
 // 直线国第一人称当前视线朝向：FORWARD(前视国王) | BACKWARD(后视邻人)
 let linelandLookDir: 'FORWARD' | 'BACKWARD' = 'FORWARD';
@@ -165,7 +166,7 @@ function handleSpecialAction(): void {
     } else {
       dialogueStrip.textContent = '“心智尚未充盈！需探寻集齐 3 枚神谕残片方可升维！”';
     }
-  } else {
+  } else if (coordinator.currentLevelId === GameLevelId.SPACELAND_PURGE) {
     // 第二幕：空间国与内脏全知
     if (spacelandGame.phase === 'CROSS_SECTION') {
       const ok = spacelandGame.interactWithSphere();
@@ -200,6 +201,12 @@ function handleSpecialAction(): void {
         dialogueStrip.textContent = '“【攀升中】视界正向更高维度展开，请等待高度稳定俯瞰全境！”';
       }
     }
+  } else if (coordinator.currentLevelId === GameLevelId.POINTLAND_EPILOGUE) {
+    // 终幕：零维之渊奇点独白与石牢回忆录挥毫
+    const ok = pointlandGame.interact();
+    if (ok) {
+      dialogueStrip.textContent = pointlandGame.soliloquy;
+    }
   }
 }
 
@@ -229,13 +236,15 @@ function resetCurrentLevel(): void {
     dialogueStrip.textContent = lineland.soliloquy;
   } else if (coordinator.currentLevelId === GameLevelId.FLATLAND_ESCAPE) {
     dialogueStrip.textContent = '“【正方形绅士】四面封闭石墙将你闭锁。请前行拾取神谕金印！”';
-  } else {
+  } else if (coordinator.currentLevelId === GameLevelId.SPACELAND_PURGE) {
     dialogueStrip.textContent = spacelandGame.soliloquy;
+  } else {
+    dialogueStrip.textContent = pointlandGame.soliloquy;
   }
 }
 
 function toggleLevel(): void {
-  const nextId = ((coordinator.currentLevelId + 1) % 3) as GameLevelId;
+  const nextId = ((coordinator.currentLevelId + 1) % 4) as GameLevelId;
   coordinator.switchLevel(nextId);
   resetCurrentLevel();
   showIntroManuscript();
@@ -245,6 +254,7 @@ function toggleLevel(): void {
 const tabAct0 = document.getElementById('tab-act-0') as HTMLButtonElement | null;
 const tabAct1 = document.getElementById('tab-act-1') as HTMLButtonElement | null;
 const tabAct2 = document.getElementById('tab-act-2') as HTMLButtonElement | null;
+const tabAct3 = document.getElementById('tab-act-3') as HTMLButtonElement | null;
 
 function updateTabButtonsUI(): void {
   const current = coordinator.currentLevelId;
@@ -260,6 +270,10 @@ function updateTabButtonsUI(): void {
     if (current === GameLevelId.SPACELAND_PURGE) tabAct2.classList.add('active');
     else tabAct2.classList.remove('active');
   }
+  if (tabAct3) {
+    if (current === GameLevelId.POINTLAND_EPILOGUE) tabAct3.classList.add('active');
+    else tabAct3.classList.remove('active');
+  }
 }
 
 function selectLevel(id: GameLevelId): void {
@@ -272,6 +286,7 @@ function selectLevel(id: GameLevelId): void {
 if (tabAct0) tabAct0.addEventListener('click', () => selectLevel(GameLevelId.LINELAND_PROLOGUE));
 if (tabAct1) tabAct1.addEventListener('click', () => selectLevel(GameLevelId.FLATLAND_ESCAPE));
 if (tabAct2) tabAct2.addEventListener('click', () => selectLevel(GameLevelId.SPACELAND_PURGE));
+if (tabAct3) tabAct3.addEventListener('click', () => selectLevel(GameLevelId.POINTLAND_EPILOGUE));
 
 btnLevelToggle.addEventListener('click', toggleLevel);
 btnQuickReset.addEventListener('click', () => {
@@ -471,7 +486,7 @@ function gameLoop(now: number): void {
     renderOmniscientView();
     renderSubjectiveFogView();
 
-  } else {
+  } else if (coordinator.currentLevelId === GameLevelId.SPACELAND_PURGE) {
     // -------------------------------------------------------------
     // 第二幕：空间国与内脏全知（球体截面穿透、反锁密室、空间国飞升）
     // -------------------------------------------------------------
@@ -573,6 +588,59 @@ function gameLoop(now: number): void {
 
     renderSpacelandOmniView();
     renderSpacelandSubjView();
+
+  } else {
+    // -------------------------------------------------------------
+    // 终幕：零维之渊与牢狱绝笔（Pointland & Epilogue）
+    // -------------------------------------------------------------
+    if (altitudeDock) altitudeDock.style.display = 'none';
+
+    // 零维/绝笔状态下，键盘按键尝试交互
+    if (currentModalMode === 'NONE') {
+      if ((keys['w'] || keys['s'] || keys['a'] || keys['d']) && Math.random() < 0.04) {
+        pointlandGame.interact();
+        dialogueStrip.textContent = pointlandGame.soliloquy;
+      }
+    }
+
+    pointlandGame.update(dt);
+
+    // 动态水银管与操作按钮
+    if (pointlandGame.phase === 'POINTLAND') {
+      gaugeLabel.textContent = '自大:';
+      mercuryBar.style.width = `${Math.min(100, (pointlandGame.pointKing.egoLevel / 3) * 100)}%`;
+      btnAscend.classList.remove('btn-sealed');
+      btnAscend.classList.add('charged');
+      btnAscendText.textContent = '聆听奇点自语';
+      btnAscendSub.textContent = `(自大值: ${pointlandGame.pointKing.egoLevel} / 4)`;
+    } else {
+      gaugeLabel.textContent = '绝笔:';
+      mercuryBar.style.width = `${Math.round(pointlandGame.manuscriptProgress * 100)}%`;
+      btnAscend.classList.remove('btn-sealed');
+      btnAscend.classList.add('charged');
+      if (pointlandGame.gameState === 'VICTORY') {
+        btnAscendText.textContent = '火漆已封印';
+        btnAscendSub.textContent = '(回忆录全篇完结)';
+      } else {
+        btnAscendText.textContent = '落笔挥毫';
+        btnAscendSub.textContent = `(第 ${pointlandGame.writtenLineIndex} / ${pointlandGame.epilogueManuscriptLines.length} 行)`;
+      }
+    }
+
+    if (pointlandGame.gameState === 'VICTORY' && !modalOverlay.classList.contains('active')) {
+      currentModalMode = 'VICTORY';
+      modalOverlay.classList.add('active');
+      const ms = coordinator.completionManuscript;
+      modalTitle.textContent = ms.title;
+      modalBody.textContent = ms.body;
+      btnModalAction.textContent = ms.nextBtnText;
+    }
+
+    const juiceFrame = pointlandGame.juice.update(dt);
+    subjViewport.style.transform = `translate(${juiceFrame.offsetX}px, ${juiceFrame.offsetY}px)`;
+
+    renderPointlandOmniView();
+    renderPointlandSubjView();
   }
 
   requestAnimationFrame(gameLoop);
@@ -2274,11 +2342,418 @@ function renderSpacelandSubjView(): void {
   subjCtx.fillText('右直角 90° ■', w - 10, h - 14);
 }
 
+// =========================================================================
+// 终幕全知沙盘渲染：零维深渊奇点与石牢孤灯
+// =========================================================================
+function renderPointlandOmniView(): void {
+  const w = omniCanvas.width;
+  const h = omniCanvas.height;
+  omniCtx.clearRect(0, 0, w, h);
+
+  const cx = w / 2;
+  const cy = h / 2;
+
+  if (pointlandGame.phase === 'POINTLAND') {
+    // 阶段 A：零维深渊 (Pointland Abyss)
+    omniCtx.fillStyle = '#08080a';
+    omniCtx.fillRect(0, 0, w, h);
+
+    // 维多利亚星轨同心引力环
+    const king = pointlandGame.pointKing;
+    const ego = king.egoLevel;
+    const pulse = king.scale;
+
+    const baseRadius = 24 + ego * 14;
+    for (let r = 1; r <= 4; r++) {
+      const curR = baseRadius * r * 0.65 * pulse;
+      omniCtx.setLineDash([3, 4]);
+      omniCtx.strokeStyle = `rgba(212, 175, 55, ${0.35 / r})`;
+      omniCtx.lineWidth = 1.0;
+      omniCtx.beginPath();
+      omniCtx.arc(cx, cy, curR, 0, Math.PI * 2);
+      omniCtx.stroke();
+      omniCtx.setLineDash([]);
+    }
+
+    // 奇点向外发散的极细金色光芒
+    for (let i = 0; i < 8; i++) {
+      const ang = (i * Math.PI) / 4 + king.pulsePhase * 0.2;
+      const rayLen = 40 + ego * 18;
+      omniCtx.strokeStyle = 'rgba(254, 240, 138, 0.25)';
+      omniCtx.lineWidth = 1;
+      omniCtx.beginPath();
+      omniCtx.moveTo(cx, cy);
+      omniCtx.lineTo(cx + Math.cos(ang) * rayLen, cy + Math.sin(ang) * rayLen);
+      omniCtx.stroke();
+    }
+
+    // 奇点国王核心辉光
+    const pointRadius = (5 + ego * 2.2) * pulse;
+    const grad = omniCtx.createRadialGradient(cx, cy, 1, cx, cy, pointRadius * 3.5);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.35, '#fef08a');
+    grad.addColorStop(0.7, '#eab308');
+    grad.addColorStop(1, 'rgba(234, 179, 8, 0)');
+    omniCtx.fillStyle = grad;
+    omniCtx.beginPath();
+    omniCtx.arc(cx, cy, pointRadius * 3.5, 0, Math.PI * 2);
+    omniCtx.fill();
+
+    // 奇点实体黄金小圆球
+    omniCtx.fillStyle = '#fef08a';
+    omniCtx.beginPath();
+    omniCtx.arc(cx, cy, pointRadius, 0, Math.PI * 2);
+    omniCtx.fill();
+    omniCtx.strokeStyle = '#ca8a04';
+    omniCtx.lineWidth = 1.6;
+    omniCtx.stroke();
+
+    // 标头与国王尊号
+    omniCtx.font = 'bold 11px serif';
+    omniCtx.fillStyle = '#fef08a';
+    omniCtx.textAlign = 'center';
+    omniCtx.fillText('【零维奇点 · 点之国国王】', cx, cy - pointRadius * 3.5 - 12);
+
+    omniCtx.font = '9.5px serif';
+    omniCtx.fillStyle = 'rgba(212, 175, 55, 0.85)';
+    omniCtx.fillText('“除我之外，皆是虚妄；我即全宇宙，我是一切。”', cx, cy + pointRadius * 3.5 + 18);
+
+    // 随着自大值升高浮现出的狂妄自语
+    if (ego >= 1) {
+      omniCtx.font = 'italic 9px serif';
+      omniCtx.fillStyle = 'rgba(250, 204, 21, 0.45)';
+      omniCtx.fillText('“听啊，我自己的乐音！”', cx - 95, cy - 35);
+    }
+    if (ego >= 2) {
+      omniCtx.fillText('“唯我独尊，无始无终！”', cx + 95, cy + 40);
+    }
+    if (ego >= 3) {
+      omniCtx.fillText('“一切呼唤皆是我的思想！”', cx - 80, cy + 50);
+    }
+
+  } else {
+    // 阶段 B：维多利亚石牢绝笔 (Victorian Solitary Cell)
+    // 幽暗石室地砖
+    omniCtx.fillStyle = '#1c1917';
+    omniCtx.fillRect(0, 0, w, h);
+
+    // 粗砺石缝地砖网格
+    omniCtx.strokeStyle = 'rgba(87, 83, 78, 0.35)';
+    omniCtx.lineWidth = 1.2;
+    for (let x = 20; x < w; x += 45) {
+      omniCtx.beginPath();
+      omniCtx.moveTo(x, 0);
+      omniCtx.lineTo(x, h);
+      omniCtx.stroke();
+    }
+    for (let y = 20; y < h; y += 40) {
+      omniCtx.beginPath();
+      omniCtx.moveTo(0, y);
+      omniCtx.lineTo(w, y);
+      omniCtx.stroke();
+    }
+
+    // 铁窗冰冷青白月光束 (Moonlight Cone)
+    const windowX = 55;
+    const windowY = 30;
+    const moonGrad = omniCtx.createRadialGradient(windowX, windowY, 10, windowX + 110, windowY + 120, 180);
+    moonGrad.addColorStop(0, 'rgba(224, 242, 254, 0.38)');
+    moonGrad.addColorStop(0.5, 'rgba(186, 230, 253, 0.15)');
+    moonGrad.addColorStop(1, 'rgba(186, 230, 253, 0)');
+
+    omniCtx.fillStyle = moonGrad;
+    omniCtx.beginPath();
+    omniCtx.moveTo(windowX - 25, windowY);
+    omniCtx.lineTo(windowX + 220, windowY + 220);
+    omniCtx.lineTo(windowX + 80, windowY + 240);
+    omniCtx.lineTo(windowX + 25, windowY);
+    omniCtx.closePath();
+    omniCtx.fill();
+
+    // 铁窗铸铁栅栏
+    omniCtx.strokeStyle = '#09090b';
+    omniCtx.lineWidth = 3.5;
+    omniCtx.strokeRect(windowX - 30, windowY - 18, 60, 42);
+    omniCtx.lineWidth = 2.0;
+    omniCtx.beginPath();
+    omniCtx.moveTo(windowX - 10, windowY - 18);
+    omniCtx.lineTo(windowX - 10, windowY + 24);
+    omniCtx.moveTo(windowX + 10, windowY - 18);
+    omniCtx.lineTo(windowX + 10, windowY + 24);
+    omniCtx.moveTo(windowX - 30, windowY + 3);
+    omniCtx.lineTo(windowX + 30, windowY + 3);
+    omniCtx.stroke();
+
+    // 囚禁的正方形绅士（在月光投影下微弱泛光）
+    const sqX = windowX + 55;
+    const sqY = windowY + 80;
+    omniCtx.strokeStyle = '#e2e8f0';
+    omniCtx.fillStyle = 'rgba(248, 250, 252, 0.35)';
+    omniCtx.lineWidth = 2.0;
+    omniCtx.beginPath();
+    omniCtx.rect(sqX - 14, sqY - 14, 28, 28);
+    omniCtx.fill();
+    omniCtx.stroke();
+
+    // 囚徒胸中暗淡跳动的微弱心室
+    omniCtx.fillStyle = '#f43f5e';
+    omniCtx.beginPath();
+    omniCtx.arc(sqX, sqY, 3.5, 0, Math.PI * 2);
+    omniCtx.fill();
+
+    // 木质书桌
+    const deskX = w - 140;
+    const deskY = h / 2 + 15;
+    omniCtx.fillStyle = '#291b12';
+    omniCtx.fillRect(deskX - 55, deskY - 35, 110, 70);
+    omniCtx.strokeStyle = '#1c130d';
+    omniCtx.lineWidth = 2;
+    omniCtx.strokeRect(deskX - 55, deskY - 35, 110, 70);
+
+    // 桌上展开的羊皮纸手稿
+    omniCtx.fillStyle = '#f6f0df';
+    omniCtx.fillRect(deskX - 35, deskY - 24, 70, 48);
+    omniCtx.strokeStyle = '#b38022';
+    omniCtx.lineWidth = 1.2;
+    omniCtx.strokeRect(deskX - 35, deskY - 24, 70, 48);
+
+    // 孤灯微光 (Oil Lamp)
+    const lampX = deskX + 22;
+    const lampY = deskY - 14;
+    const lampGrad = omniCtx.createRadialGradient(lampX, lampY, 2, lampX, lampY, 48);
+    lampGrad.addColorStop(0, 'rgba(254, 240, 138, 0.7)');
+    lampGrad.addColorStop(0.4, 'rgba(245, 158, 11, 0.35)');
+    lampGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+    omniCtx.fillStyle = lampGrad;
+    omniCtx.beginPath();
+    omniCtx.arc(lampX, lampY, 48, 0, Math.PI * 2);
+    omniCtx.fill();
+
+    // 黄铜灯盏
+    omniCtx.fillStyle = '#ca8a04';
+    omniCtx.fillRect(lampX - 3, lampY - 2, 6, 8);
+    omniCtx.fillStyle = '#ffffff';
+    omniCtx.beginPath();
+    omniCtx.arc(lampX, lampY - 4, 2.5, 0, Math.PI * 2);
+    omniCtx.fill();
+
+    // 羽毛笔与墨水瓶
+    omniCtx.fillStyle = '#0f172a';
+    omniCtx.fillRect(deskX - 28, deskY - 18, 6, 8);
+    omniCtx.strokeStyle = '#e2e8f0';
+    omniCtx.lineWidth = 1.5;
+    omniCtx.beginPath();
+    omniCtx.moveTo(deskX - 25, deskY - 14);
+    omniCtx.lineTo(deskX - 10, deskY - 2);
+    omniCtx.stroke();
+
+    // 手稿上的文字行
+    omniCtx.strokeStyle = '#451a03';
+    omniCtx.lineWidth = 1;
+    for (let l = 0; l < Math.min(6, pointlandGame.writtenLineIndex); l++) {
+      omniCtx.beginPath();
+      omniCtx.moveTo(deskX - 30, deskY - 16 + l * 7);
+      omniCtx.lineTo(deskX + 12, deskY - 16 + l * 7);
+      omniCtx.stroke();
+    }
+
+    // 鲜红火漆印章（如果全篇书写完毕）
+    if (pointlandGame.gameState === 'VICTORY') {
+      omniCtx.fillStyle = '#b91c1c';
+      omniCtx.beginPath();
+      omniCtx.arc(deskX + 18, deskY + 12, 8, 0, Math.PI * 2);
+      omniCtx.fill();
+      omniCtx.strokeStyle = '#7f1d1d';
+      omniCtx.lineWidth = 1.5;
+      omniCtx.stroke();
+    }
+
+    // 标题 HUD
+    omniCtx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    omniCtx.fillRect(6, 6, w - 12, 26);
+    omniCtx.strokeStyle = '#8c6d3b';
+    omniCtx.lineWidth = 1.2;
+    omniCtx.strokeRect(6, 6, w - 12, 26);
+
+    omniCtx.font = 'bold 10px serif';
+    omniCtx.fillStyle = '#fef08a';
+    omniCtx.textAlign = 'left';
+    omniCtx.fillText('【维多利亚石牢】孤灯残卷 · 终身监禁', 14, 22);
+
+    omniCtx.textAlign = 'right';
+    omniCtx.fillText(`绝笔进度: ${pointlandGame.writtenLineIndex} / ${pointlandGame.epilogueManuscriptLines.length} 行`, w - 14, 22);
+  }
+}
+
+// =========================================================================
+// 终幕第一人称肉身感官渲染：零维视网膜与羊皮纸手稿
+// =========================================================================
+function renderPointlandSubjView(): void {
+  const w = subjCanvas.width;
+  const h = subjCanvas.height;
+  subjCtx.clearRect(0, 0, w, h);
+
+  if (pointlandGame.phase === 'POINTLAND') {
+    // 阶段 A：零维视网膜槽（没有长宽，仅有一个感应点）
+    subjCtx.fillStyle = '#111015';
+    subjCtx.fillRect(0, 0, w, h);
+
+    const horizonY = h / 2 - 10;
+    const slotHeight = 16;
+    const slotTop = horizonY - slotHeight / 2;
+
+    // 零维感官盲点槽
+    subjCtx.fillStyle = '#1f1d24';
+    subjCtx.fillRect(0, slotTop, w, slotHeight);
+
+    const centerX = w / 2;
+
+    // 自大声波震荡涟漪
+    const ego = pointlandGame.pointKing.egoLevel;
+    const waveAmp = 10 + ego * 6;
+    subjCtx.strokeStyle = 'rgba(234, 179, 8, 0.35)';
+    subjCtx.lineWidth = 1.2;
+    subjCtx.beginPath();
+    for (let x = 0; x < w; x += 4) {
+      const distFromCenter = Math.abs(x - centerX);
+      const wave = Math.sin(distFromCenter * 0.12 - pointlandGame.pointKing.pulsePhase * 2.5) * (waveAmp / (1 + distFromCenter * 0.025));
+      if (x === 0) subjCtx.moveTo(x, horizonY + wave);
+      else subjCtx.lineTo(x, horizonY + wave);
+    }
+    subjCtx.stroke();
+
+    // 视网膜中心唯一的奇点感应质点
+    const pulse = pointlandGame.pointKing.scale;
+    const dotR = (4.5 + ego * 1.5) * pulse;
+    const g = subjCtx.createRadialGradient(centerX, horizonY, 1, centerX, horizonY, dotR * 3);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.4, '#fef08a');
+    g.addColorStop(1, 'rgba(234, 179, 8, 0)');
+    subjCtx.fillStyle = g;
+    subjCtx.beginPath();
+    subjCtx.arc(centerX, horizonY, dotR * 3, 0, Math.PI * 2);
+    subjCtx.fill();
+
+    subjCtx.fillStyle = '#fef08a';
+    subjCtx.beginPath();
+    subjCtx.arc(centerX, horizonY, dotR, 0, Math.PI * 2);
+    subjCtx.fill();
+
+    // 下方哲学独白横幅
+    subjCtx.fillStyle = 'rgba(24, 24, 27, 0.92)';
+    subjCtx.fillRect(15, h - 85, w - 30, 70);
+    subjCtx.strokeStyle = '#ca8a04';
+    subjCtx.lineWidth = 1.2;
+    subjCtx.strokeRect(15, h - 85, w - 30, 70);
+
+    const mono = pointlandGame.monologues[pointlandGame.currentMonologueIndex];
+    subjCtx.font = 'bold 11px serif';
+    subjCtx.fillStyle = '#fef08a';
+    subjCtx.textAlign = 'center';
+    subjCtx.fillText(mono.subtext, w / 2, h - 64);
+
+    subjCtx.font = '10px serif';
+    subjCtx.fillStyle = '#e2e8f0';
+    subjCtx.fillText(mono.text, w / 2, h - 42);
+
+    subjCtx.font = '9px serif';
+    subjCtx.fillStyle = '#94a3b8';
+    subjCtx.fillText('（点击右下角按钮或按空格继续聆听深渊回响……）', w / 2, h - 24);
+
+  } else {
+    // 阶段 B：维多利亚羊皮纸手稿书写视界 (Victorian Parchment Manuscript)
+    subjCtx.fillStyle = '#f4eedb';
+    subjCtx.fillRect(0, 0, w, h);
+
+    // 羊皮纸精工双层边框与暗纹
+    subjCtx.strokeStyle = 'rgba(140, 109, 59, 0.45)';
+    subjCtx.lineWidth = 2.0;
+    subjCtx.strokeRect(10, 10, w - 20, h - 20);
+    subjCtx.strokeStyle = 'rgba(140, 109, 59, 0.2)';
+    subjCtx.lineWidth = 1.0;
+    subjCtx.strokeRect(14, 14, w - 28, h - 28);
+
+    // 羊皮纸抬头
+    subjCtx.font = 'bold 12.5px serif';
+    subjCtx.fillStyle = '#3e2c14';
+    subjCtx.textAlign = 'center';
+    subjCtx.fillText('《平面国：一个正方形的忏悔与真理之书》', w / 2, 34);
+
+    subjCtx.strokeStyle = '#8c6d3b';
+    subjCtx.lineWidth = 1;
+    subjCtx.beginPath();
+    subjCtx.moveTo(w / 2 - 130, 42);
+    subjCtx.lineTo(w / 2 + 130, 42);
+    subjCtx.stroke();
+
+    // 逐行书写的手稿内容
+    subjCtx.textAlign = 'left';
+    const startY = 66;
+    const lineSpacing = 27;
+
+    for (let i = 0; i < pointlandGame.writtenLineIndex; i++) {
+      const line = pointlandGame.epilogueManuscriptLines[i];
+      const lineY = startY + i * lineSpacing;
+
+      if (i === 0) {
+        subjCtx.font = 'bold 10px serif';
+        subjCtx.fillStyle = '#854d0e';
+      } else if (i === pointlandGame.epilogueManuscriptLines.length - 1) {
+        subjCtx.font = 'italic 10px serif';
+        subjCtx.fillStyle = '#b45309';
+      } else {
+        subjCtx.font = '10.5px serif';
+        subjCtx.fillStyle = '#1c1917';
+      }
+
+      subjCtx.fillText(line, 24, lineY);
+
+      // 当前行末尾闪烁的羽毛笔墨水笔尖
+      if (i === pointlandGame.writtenLineIndex - 1 && pointlandGame.gameState !== 'VICTORY') {
+        const textWidth = subjCtx.measureText(line).width;
+        subjCtx.fillStyle = '#b45309';
+        subjCtx.beginPath();
+        subjCtx.arc(24 + textWidth + 8, lineY - 3, 2.5, 0, Math.PI * 2);
+        subjCtx.fill();
+      }
+    }
+
+    // 全篇书写完毕：盖上维多利亚鲜红火漆封印
+    if (pointlandGame.gameState === 'VICTORY') {
+      const sealX = w - 68;
+      const sealY = h - 52;
+      subjCtx.fillStyle = '#991b1b';
+      subjCtx.beginPath();
+      subjCtx.arc(sealX, sealY, 24, 0, Math.PI * 2);
+      subjCtx.fill();
+
+      subjCtx.strokeStyle = '#7f1d1d';
+      subjCtx.lineWidth = 2.5;
+      subjCtx.stroke();
+
+      subjCtx.font = 'bold 9.5px serif';
+      subjCtx.fillStyle = '#fef2f2';
+      subjCtx.textAlign = 'center';
+      subjCtx.fillText('【绝笔】', sealX, sealY - 4);
+      subjCtx.fillText('真理印章', sealX, sealY + 9);
+    } else {
+      subjCtx.font = '9.5px serif';
+      subjCtx.fillStyle = '#78350f';
+      subjCtx.textAlign = 'center';
+      subjCtx.fillText('（点击【落笔挥毫】按钮或按空格键继续书写回忆录……）', w / 2, h - 20);
+    }
+  }
+}
+
 // URL 查询参数解析，支持通过链接或直达参数直接进入指定幕与状态
 try {
   const urlParams = new URLSearchParams(window.location.search);
   const actParam = urlParams.get('act');
-  if (actParam === '2' || actParam === 'spaceland') {
+  if (actParam === '3' || actParam === 'pointland' || actParam === 'epilogue') {
+    selectLevel(GameLevelId.POINTLAND_EPILOGUE);
+    modalOverlay.classList.remove('active');
+    currentModalMode = 'NONE';
+  } else if (actParam === '2' || actParam === 'spaceland') {
     selectLevel(GameLevelId.SPACELAND_PURGE);
     modalOverlay.classList.remove('active');
     currentModalMode = 'NONE';
