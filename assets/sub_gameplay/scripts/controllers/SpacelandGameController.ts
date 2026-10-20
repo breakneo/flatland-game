@@ -60,7 +60,7 @@ function rayCircleIntersect(
 
 export interface SpacelandCitizen {
   id: string;
-  type: 'triangle' | 'isosceles' | 'square';
+  type: 'triangle' | 'isosceles' | 'square' | 'pentagon';
   name: string;
   x: number;
   y: number;
@@ -79,7 +79,7 @@ export class SpacelandGameController {
   public player = {
     x: -2.0,
     y: 0,
-    angle: 0, // 面向正东 (+X 方向，朝向前方密闭铁箱)
+    angle: 0, // 面向正东 (+X 方向，朝向前方面闭铁箱)
     size: 1.2,
   };
 
@@ -123,41 +123,80 @@ export class SpacelandGameController {
     {
       id: 'noble_triangle',
       type: 'triangle',
-      name: '等边三角形绅士',
+      name: '等边三角形商贩',
       x: -1.5,
       y: 4.8,
       vx: 1.3,
       vy: 0,
-      minPos: -4.5,
-      maxPos: 4.5,
+      minPos: -5.5,
+      maxPos: 5.5,
       axis: 'x',
       organPulsePhase: 0,
     },
     {
+      id: 'noble_triangle_east',
+      type: 'triangle',
+      name: '东街工匠三角形',
+      x: 3.2,
+      y: -5.2,
+      vx: -1.1,
+      vy: 0,
+      minPos: -4.5,
+      maxPos: 6.0,
+      axis: 'x',
+      organPulsePhase: 2.4,
+    },
+    {
       id: 'guard_isosceles',
       type: 'isosceles',
-      name: '等腰宪兵',
+      name: '西巡道等腰宪兵',
       x: -5.6,
       y: -1.5,
       vx: 0,
       vy: 1.5,
-      minPos: -3.8,
-      maxPos: 3.8,
+      minPos: -4.8,
+      maxPos: 4.8,
       axis: 'y',
       organPulsePhase: 1.8,
     },
     {
+      id: 'guard_isosceles_east',
+      type: 'isosceles',
+      name: '东门等腰哨兵',
+      x: 6.2,
+      y: 2.0,
+      vx: 0,
+      vy: -1.6,
+      minPos: -4.2,
+      maxPos: 4.2,
+      axis: 'y',
+      organPulsePhase: 0.9,
+    },
+    {
       id: 'scholar_square',
       type: 'square',
-      name: '正方形同僚',
+      name: '正方形学者同侪',
       x: 5.6,
       y: 1.0,
       vx: 0,
       vy: -1.2,
-      minPos: -3.5,
-      maxPos: 3.5,
+      minPos: -4.5,
+      maxPos: 4.5,
       axis: 'y',
       organPulsePhase: 3.2,
+    },
+    {
+      id: 'patrician_pentagon',
+      type: 'pentagon',
+      name: '五边形市政法官',
+      x: -0.5,
+      y: -6.0,
+      vx: 0.9,
+      vy: 0,
+      minPos: -5.0,
+      maxPos: 5.0,
+      axis: 'x',
+      organPulsePhase: 4.1,
     },
   ];
 
@@ -248,6 +287,17 @@ export class SpacelandGameController {
     }
   }
 
+  public movePlayerOmni(moveX: number, moveY: number, dt: number): void {
+    if (this.gameState !== 'PLAYING') return;
+    const speed = this.isAscended ? 6.5 : 3.8;
+    this.player.x += moveX * speed * dt;
+    this.player.y += moveY * speed * dt;
+    if (!this.isAscended) {
+      this.player.x = Math.max(this.studyWalls.minX + 0.6, Math.min(this.studyWalls.maxX - 0.6, this.player.x));
+      this.player.y = Math.max(this.studyWalls.minY + 0.6, Math.min(this.studyWalls.maxY - 0.6, this.player.y));
+    }
+  }
+
   public movePlayer(forward: number, turn: number, dt: number): void {
     if (this.gameState !== 'PLAYING') return;
 
@@ -298,30 +348,30 @@ export class SpacelandGameController {
     return false;
   }
 
-  // 交互 2：从第三维度“上方”探入反锁铁箱，取出密室内的手稿
+  // 交互 2：球体演示高维神迹：破除密室死锁取出绝密手稿，并触碰正方形内脏
   public reachIntoCabinet(): boolean {
     if (this.phase !== 'CABINET_PUZZLE') return false;
 
     const dist = Math.hypot(this.player.x - this.cabinet.x, this.player.y - this.cabinet.y);
-    if (dist < 2.2) {
+    if (dist < 2.5) {
       this.hasRetrievedManuscript = true;
-      this.soliloquy = '“【破除死锁】你借由‘向上’的矢量越过四壁，从上方直接取出了铁箱内的绝密手稿！”';
-      this.juice.addTrauma(0.4);
+      this.soliloquy = '“【原著第17章 · 破除死锁与触碰内脏】球体直接从上方探入反锁密室铁箱取出手稿！随后其高维形体直接穿透你的表皮触碰了你的肠胃内脏——无法言说的剧痛与震颤从你体内最深处爆发！”';
+      this.juice.addTrauma(0.65);
       return true;
     }
     return false;
   }
 
-  // 交互 3：触发飞升，球体将正方形拉出纸面进入空间国
+  // 交互 3：触发脱离纸面，球体强行抓取正方形垂直拔起进入空间国
   public triggerAscend(): boolean {
     if (!this.hasRetrievedManuscript) return false;
     this.phase = 'ASCENDED';
     this.isDetaching = true;
     this.detachProgress = 0;
     this.isAutoAscending = true;
-    this.altitude = 0.3;
-    this.soliloquy = '“【空间国引渡】球体抓住正方形：‘既然言语无法启蒙你，我便带你亲自进入空间国！’ 天地骤暗，你被硬生生剥离了二维纸面！”';
-    this.juice.addTrauma(0.8);
+    this.altitude = 0.4;
+    this.soliloquy = '“【原著第18章 · 拔离纸面】球体：‘既然言语无法让你开悟，那么就用唯一的办法——出来吧！离开你的平面！’球体将你像贴纸一般从二维纸面生硬拔起，垂直拉升入浩瀚空间国！”';
+    this.juice.addTrauma(0.85);
     return true;
   }
 

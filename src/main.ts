@@ -476,10 +476,24 @@ function gameLoop(now: number): void {
     // 第二幕：空间国与内脏全知（球体截面穿透、反锁密室、空间国飞升）
     // -------------------------------------------------------------
     if (currentModalMode === 'NONE') {
-      spacelandGame.movePlayer(forward, turn, dt);
       if (spacelandGame.isAscended) {
-        if (keys['q'] || keys['shift']) spacelandGame.changeAltitude(-3.5 * dt);
-        if (keys['e']) spacelandGame.changeAltitude(3.5 * dt);
+        // 三维飞升状态：W/S/A/D 直接控制全向俯视飞行巡航（无偏航角乱晃，视野端正庄严）
+        let mx = 0;
+        let my = 0;
+        if (keys['w'] || keys['arrowup']) my += 1;
+        if (keys['s'] || keys['arrowdown']) my -= 1;
+        if (keys['a'] || keys['arrowleft']) mx -= 1;
+        if (keys['d'] || keys['arrowright']) mx += 1;
+        if (mx !== 0 || my !== 0) {
+          const len = Math.hypot(mx, my);
+          spacelandGame.movePlayerOmni(mx / len, my / len, dt);
+        }
+
+        // 高程升降控制：E/Space 升高，Q/Shift 俯冲
+        if (keys['q'] || keys['shift']) spacelandGame.changeAltitude(-3.8 * dt);
+        if (keys['e'] || keys[' ']) spacelandGame.changeAltitude(3.8 * dt);
+      } else {
+        spacelandGame.movePlayer(forward, turn, dt);
       }
     }
 
@@ -1248,11 +1262,12 @@ function renderSubjectiveFogView(): void {
 }
 
 // =========================================================================
-// 三维第一人称俯视投影变换算法 (3D Downward Perspective Projection)
+// 三维向下第一人称俯视投影变换算法 (3D Downward Perspective Projection)
 // =========================================================================
 interface Projected3DPoint {
   x: number;
   y: number;
+  scale: number;
   depth: number;
   visible: boolean;
 }
@@ -1264,46 +1279,30 @@ function project3DDownward(
   camX: number,
   camY: number,
   camZ: number,
-  camAngle: number,
-  canvasW: number,
-  canvasH: number,
-  pitchRad: number = (72 * Math.PI) / 180,
-  focal: number = 300
+  _camAngle: number = 0,
+  canvasW: number = 440,
+  canvasH: number = 300
 ): Projected3DPoint {
   const cx = canvasW / 2;
-  const cy = canvasH / 2 - 12;
+  const cy = canvasH / 2;
+
+  // 真正的垂直向下第一人称俯视透视模型 (Top-Down Downward Perspective)
+  // 相机悬浮于高空 (camX, camY, camZ)，垂直朝下俯瞰 Z=0 二维大地
+  const focal = 122;
+  const effZ = Math.max(0.35, camZ - wz);
+  const scale = focal / effZ;
 
   const dx = wx - camX;
   const dy = wy - camY;
-  const dz = wz - camZ;
 
-  // 1. 绕玩家朝向角度 (Yaw) 旋转地面水平偏移
-  const cosA = Math.cos(-camAngle);
-  const sinA = Math.sin(-camAngle);
-  const dForward = dx * cosA - dy * sinA;
-  const dRight = dx * sinA + dy * cosA;
+  // 屏幕映射：北向 (+Y) 向上，东向 (+X) 向右
+  const sx = cx + dx * scale;
+  const sy = cy - dy * scale;
 
-  // 2. 俯仰角 (Pitch): 相机朝向下倾斜 pitchRad
-  const cosP = Math.cos(pitchRad);
-  const sinP = Math.sin(pitchRad);
-
-  // 沿相机视轴的光学深度 Depth
-  const depth = dForward * cosP - dz * sinP;
-  if (depth < 0.2) {
-    return { x: 0, y: 0, depth, visible: false };
-  }
-
-  // 相机坐标系中的垂直与水平分量
-  const yCam = -dForward * sinP - dz * cosP;
-  const xCam = dRight;
-
-  const sx = cx + (xCam * focal) / depth;
-  const sy = cy + (yCam * focal) / depth;
-
-  const margin = 120;
+  const margin = 260;
   const visible = sx >= -margin && sx <= canvasW + margin && sy >= -margin && sy <= canvasH + margin;
 
-  return { x: sx, y: sy, depth, visible };
+  return { x: sx, y: sy, scale, depth: effZ, visible };
 }
 
 // =========================================================================
@@ -1319,27 +1318,26 @@ function renderSpacelandOmniView(): void {
 
   if (isAsc && alt > 0.05) {
     // =============================================================
-    // 【三维第一人称俯瞰相机】（脱离二维纸面后，悬浮于高空亲自低头俯视！）
+    // 【三维第一人称向下俯视相机】（脱离纸面后，悬浮于高空亲自低头俯视！）
     // =============================================================
-    // 1. 浩瀚三维以太深邃渐变背景
-    const skyGrad = omniCtx.createLinearGradient(0, 0, 0, h);
-    skyGrad.addColorStop(0, '#0a0907');
-    skyGrad.addColorStop(0.35, '#16120e');
-    skyGrad.addColorStop(1, '#221a14');
-    omniCtx.fillStyle = skyGrad;
-    omniCtx.fillRect(0, 0, w, h);
-
     const camX = spacelandGame.player.x;
     const camY = spacelandGame.player.y;
     const camZ = alt;
-    const camAngle = spacelandGame.player.angle;
 
-    // 2. 渲染三维坐标下的平面国大地基准网格 (Z = 0)
-    omniCtx.strokeStyle = 'rgba(212, 175, 55, 0.16)';
-    omniCtx.lineWidth = 1.0;
-    for (let gx = -12; gx <= 12; gx += 2.0) {
-      const p1 = project3DDownward(gx, -12, 0, camX, camY, camZ, camAngle, w, h);
-      const p2 = project3DDownward(gx, 12, 0, camX, camY, camZ, camAngle, w, h);
+    // 1. 浩瀚三维以太深邃渐变背景
+    const skyGrad = omniCtx.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, Math.max(w, h));
+    skyGrad.addColorStop(0, '#1c150c');
+    skyGrad.addColorStop(0.55, '#120d08');
+    skyGrad.addColorStop(1, '#080604');
+    omniCtx.fillStyle = skyGrad;
+    omniCtx.fillRect(0, 0, w, h);
+
+    // 2. 悬浮微粒与高维经纬十字坐标网格 (Z = 0)
+    omniCtx.strokeStyle = 'rgba(212, 175, 55, 0.14)';
+    omniCtx.lineWidth = 0.8;
+    for (let gx = -16; gx <= 16; gx += 2.0) {
+      const p1 = project3DDownward(gx, -16, 0, camX, camY, camZ, 0, w, h);
+      const p2 = project3DDownward(gx, 16, 0, camX, camY, camZ, 0, w, h);
       if (p1.visible || p2.visible) {
         omniCtx.beginPath();
         omniCtx.moveTo(p1.x, p1.y);
@@ -1347,9 +1345,9 @@ function renderSpacelandOmniView(): void {
         omniCtx.stroke();
       }
     }
-    for (let gy = -12; gy <= 12; gy += 2.0) {
-      const p1 = project3DDownward(-12, gy, 0, camX, camY, camZ, camAngle, w, h);
-      const p2 = project3DDownward(12, gy, 0, camX, camY, camZ, camAngle, w, h);
+    for (let gy = -16; gy <= 16; gy += 2.0) {
+      const p1 = project3DDownward(-16, gy, 0, camX, camY, camZ, 0, w, h);
+      const p2 = project3DDownward(16, gy, 0, camX, camY, camZ, 0, w, h);
       if (p1.visible || p2.visible) {
         omniCtx.beginPath();
         omniCtx.moveTo(p1.x, p1.y);
@@ -1358,34 +1356,81 @@ function renderSpacelandOmniView(): void {
       }
     }
 
-    // 3. 俯视视角下的【无顶反锁书房】：四壁如槽，室内一览无遗！
+    // 3. 维多利亚大都市主干道与煤气路灯
+    const roads = [
+      { name: '【维多利亚北街】', x1: -12, y1: 5.0, x2: 12, y2: 5.0 },
+      { name: '【西宪兵巡道】', x1: -5.8, y1: -10, x2: -5.8, y2: 10 },
+      { name: '【东门商道】', x1: 6.0, y1: -10, x2: 6.0, y2: 10 },
+      { name: '【南林荫道】', x1: -12, y1: -5.5, x2: 12, y2: -5.5 },
+    ];
+    omniCtx.strokeStyle = 'rgba(217, 119, 6, 0.28)';
+    omniCtx.lineWidth = Math.max(1.5, Math.min(4.0, 15.0 / alt));
+    for (const r of roads) {
+      const p1 = project3DDownward(r.x1, r.y1, 0, camX, camY, camZ, 0, w, h);
+      const p2 = project3DDownward(r.x2, r.y2, 0, camX, camY, camZ, 0, w, h);
+      if (p1.visible || p2.visible) {
+        omniCtx.beginPath();
+        omniCtx.moveTo(p1.x, p1.y);
+        omniCtx.lineTo(p2.x, p2.y);
+        omniCtx.stroke();
+      }
+    }
+
+    // 维多利亚路灯暖黄光晕
+    const lamps = [
+      { x: -4.5, y: 4.2 },
+      { x: 4.5, y: 4.2 },
+      { x: -4.5, y: -4.5 },
+      { x: 4.5, y: -4.5 },
+    ];
+    for (const lp of lamps) {
+      const lPt = project3DDownward(lp.x, lp.y, 0, camX, camY, camZ, 0, w, h);
+      if (lPt.visible) {
+        const radius = Math.max(8, Math.min(45, 120 / alt));
+        const lGrad = omniCtx.createRadialGradient(lPt.x, lPt.y, 2, lPt.x, lPt.y, radius);
+        lGrad.addColorStop(0, 'rgba(254, 240, 138, 0.45)');
+        lGrad.addColorStop(0.4, 'rgba(217, 119, 6, 0.18)');
+        lGrad.addColorStop(1, 'rgba(217, 119, 6, 0)');
+        omniCtx.fillStyle = lGrad;
+        omniCtx.beginPath();
+        omniCtx.arc(lPt.x, lPt.y, radius, 0, Math.PI * 2);
+        omniCtx.fill();
+      }
+    }
+
+    // 4. 俯视视角下的【无顶反锁书房】（立体凹槽石壁）
     const walls = spacelandGame.studyWalls;
-    const roomPts = [
-      project3DDownward(walls.minX, walls.minY, 0, camX, camY, camZ, camAngle, w, h),
-      project3DDownward(walls.minX, walls.maxY, 0, camX, camY, camZ, camAngle, w, h),
-      project3DDownward(walls.maxX, walls.maxY, 0, camX, camY, camZ, camAngle, w, h),
-      project3DDownward(walls.maxX, walls.minY, 0, camX, camY, camZ, camAngle, w, h),
+    const floorPts = [
+      project3DDownward(walls.minX, walls.minY, 0, camX, camY, camZ, 0, w, h),
+      project3DDownward(walls.minX, walls.maxY, 0, camX, camY, camZ, 0, w, h),
+      project3DDownward(walls.maxX, walls.maxY, 0, camX, camY, camZ, 0, w, h),
+      project3DDownward(walls.maxX, walls.minY, 0, camX, camY, camZ, 0, w, h),
     ];
 
-    if (roomPts.some(p => p.visible)) {
-      omniCtx.fillStyle = 'rgba(244, 238, 219, 0.4)';
+    // 石墙顶端 (Z = 0.85) 的三维立体投影
+    const wallH = 0.85;
+    const topPts = [
+      project3DDownward(walls.minX, walls.minY, wallH, camX, camY, camZ, 0, w, h),
+      project3DDownward(walls.minX, walls.maxY, wallH, camX, camY, camZ, 0, w, h),
+      project3DDownward(walls.maxX, walls.maxY, wallH, camX, camY, camZ, 0, w, h),
+      project3DDownward(walls.maxX, walls.minY, wallH, camX, camY, camZ, 0, w, h),
+    ];
+
+    if (floorPts.some(p => p.visible) || topPts.some(p => p.visible)) {
+      // 书房木地板
+      omniCtx.fillStyle = 'rgba(245, 235, 215, 0.45)';
       omniCtx.beginPath();
-      omniCtx.moveTo(roomPts[0].x, roomPts[0].y);
-      for (let i = 1; i < 4; i++) omniCtx.lineTo(roomPts[i].x, roomPts[i].y);
+      omniCtx.moveTo(floorPts[0].x, floorPts[0].y);
+      for (let i = 1; i < 4; i++) omniCtx.lineTo(floorPts[i].x, floorPts[i].y);
       omniCtx.closePath();
       omniCtx.fill();
 
-      // 无顶墙壁线条
-      omniCtx.strokeStyle = '#d4af37';
-      omniCtx.lineWidth = Math.max(1.6, Math.min(4.2, 16.0 / alt));
-      omniCtx.stroke();
-
       // 地板人字木纹细线
-      omniCtx.strokeStyle = 'rgba(140, 109, 59, 0.18)';
+      omniCtx.strokeStyle = 'rgba(140, 109, 59, 0.22)';
       omniCtx.lineWidth = 1.0;
       for (let x = walls.minX; x <= walls.maxX; x += 1.2) {
-        const p1 = project3DDownward(x, walls.minY, 0, camX, camY, camZ, camAngle, w, h);
-        const p2 = project3DDownward(x, walls.maxY, 0, camX, camY, camZ, camAngle, w, h);
+        const p1 = project3DDownward(x, walls.minY, 0, camX, camY, camZ, 0, w, h);
+        const p2 = project3DDownward(x, walls.maxY, 0, camX, camY, camZ, 0, w, h);
         if (p1.visible && p2.visible) {
           omniCtx.beginPath();
           omniCtx.moveTo(p1.x, p1.y);
@@ -1394,42 +1439,92 @@ function renderSpacelandOmniView(): void {
         }
       }
 
-      // 书桌与波斯地毯
-      const deskP = project3DDownward(-1.4, 1.4, 0, camX, camY, camZ, camAngle, w, h);
+      // 绘制四面立体石槽内壁（深棕灰阴影）
+      omniCtx.fillStyle = 'rgba(55, 45, 35, 0.38)';
+      for (let i = 0; i < 4; i++) {
+        const next = (i + 1) % 4;
+        omniCtx.beginPath();
+        omniCtx.moveTo(floorPts[i].x, floorPts[i].y);
+        omniCtx.lineTo(floorPts[next].x, floorPts[next].y);
+        omniCtx.lineTo(topPts[next].x, topPts[next].y);
+        omniCtx.lineTo(topPts[i].x, topPts[i].y);
+        omniCtx.closePath();
+        omniCtx.fill();
+      }
+
+      // 无顶石壁金黄边框
+      omniCtx.strokeStyle = '#d4af37';
+      omniCtx.lineWidth = Math.max(1.8, Math.min(4.5, 18.0 / alt));
+      omniCtx.beginPath();
+      omniCtx.moveTo(topPts[0].x, topPts[0].y);
+      for (let i = 1; i < 4; i++) omniCtx.lineTo(topPts[i].x, topPts[i].y);
+      omniCtx.closePath();
+      omniCtx.stroke();
+
+      // 书桌与手稿
+      const deskP = project3DDownward(-1.5, 1.2, 0, camX, camY, camZ, 0, w, h);
       if (deskP.visible) {
-        const dScale = Math.max(8, 60 / deskP.depth);
+        const dw = Math.max(12, Math.min(65, 80 / alt));
+        const dh = dw * 0.6;
         omniCtx.fillStyle = '#451a03';
-        omniCtx.fillRect(deskP.x - dScale * 0.7, deskP.y - dScale * 0.35, dScale * 1.4, dScale * 0.7);
+        omniCtx.fillRect(deskP.x - dw / 2, deskP.y - dh / 2, dw, dh);
         omniCtx.fillStyle = '#fef08a';
-        omniCtx.fillRect(deskP.x - dScale * 0.3, deskP.y - dScale * 0.2, dScale * 0.6, dScale * 0.4);
+        omniCtx.fillRect(deskP.x - dw * 0.25, deskP.y - dh * 0.2, dw * 0.5, dh * 0.4);
       }
     }
 
-    // 4. 俯视视角下的【反锁密室铁箱】：箱顶彻底洞开，绝密手稿赫然在目！
+    // 5. 俯视视角下的【敞开反锁铁箱与绝密手稿】
     const cab = spacelandGame.cabinet;
     const hs = cab.halfSize;
-    const cabPts = [
-      project3DDownward(cab.x - hs, cab.y - hs, 0, camX, camY, camZ, camAngle, w, h),
-      project3DDownward(cab.x - hs, cab.y + hs, 0, camX, camY, camZ, camAngle, w, h),
-      project3DDownward(cab.x + hs, cab.y + hs, 0, camX, camY, camZ, camAngle, w, h),
-      project3DDownward(cab.x + hs, cab.y - hs, 0, camX, camY, camZ, camAngle, w, h),
+    const cabFloor = [
+      project3DDownward(cab.x - hs, cab.y - hs, 0, camX, camY, camZ, 0, w, h),
+      project3DDownward(cab.x - hs, cab.y + hs, 0, camX, camY, camZ, 0, w, h),
+      project3DDownward(cab.x + hs, cab.y + hs, 0, camX, camY, camZ, 0, w, h),
+      project3DDownward(cab.x + hs, cab.y - hs, 0, camX, camY, camZ, 0, w, h),
+    ];
+    const cabTopH = 0.5;
+    const cabTop = [
+      project3DDownward(cab.x - hs, cab.y - hs, cabTopH, camX, camY, camZ, 0, w, h),
+      project3DDownward(cab.x - hs, cab.y + hs, cabTopH, camX, camY, camZ, 0, w, h),
+      project3DDownward(cab.x + hs, cab.y + hs, cabTopH, camX, camY, camZ, 0, w, h),
+      project3DDownward(cab.x + hs, cab.y - hs, cabTopH, camX, camY, camZ, 0, w, h),
     ];
 
-    if (cabPts.some(p => p.visible)) {
-      omniCtx.fillStyle = 'rgba(254, 240, 138, 0.45)';
+    if (cabFloor.some(p => p.visible) || cabTop.some(p => p.visible)) {
+      // 铁壁侧翼阴影
+      omniCtx.fillStyle = 'rgba(70, 50, 20, 0.55)';
+      for (let i = 0; i < 4; i++) {
+        const next = (i + 1) % 4;
+        omniCtx.beginPath();
+        omniCtx.moveTo(cabFloor[i].x, cabFloor[i].y);
+        omniCtx.lineTo(cabFloor[next].x, cabFloor[next].y);
+        omniCtx.lineTo(cabTop[next].x, cabTop[next].y);
+        omniCtx.lineTo(cabTop[i].x, cabTop[i].y);
+        omniCtx.closePath();
+        omniCtx.fill();
+      }
+
+      // 箱内金光发亮底座
+      omniCtx.fillStyle = 'rgba(254, 240, 138, 0.42)';
       omniCtx.beginPath();
-      omniCtx.moveTo(cabPts[0].x, cabPts[0].y);
-      for (let i = 1; i < 4; i++) omniCtx.lineTo(cabPts[i].x, cabPts[i].y);
+      omniCtx.moveTo(cabFloor[0].x, cabFloor[0].y);
+      for (let i = 1; i < 4; i++) omniCtx.lineTo(cabFloor[i].x, cabFloor[i].y);
       omniCtx.closePath();
       omniCtx.fill();
 
+      // 铁箱顶部金黄边线与铆钉
       omniCtx.strokeStyle = '#f59e0b';
       omniCtx.lineWidth = Math.max(1.8, Math.min(4.5, 18.0 / alt));
+      omniCtx.beginPath();
+      omniCtx.moveTo(cabTop[0].x, cabTop[0].y);
+      for (let i = 1; i < 4; i++) omniCtx.lineTo(cabTop[i].x, cabTop[i].y);
+      omniCtx.closePath();
       omniCtx.stroke();
 
-      const cabCenter = project3DDownward(cab.x, cab.y, 0.05, camX, camY, camZ, camAngle, w, h);
+      // 箱内绝密手稿卷轴
+      const cabCenter = project3DDownward(cab.x, cab.y, 0.05, camX, camY, camZ, 0, w, h);
       if (cabCenter.visible) {
-        const docW = Math.max(10, 65 / cabCenter.depth);
+        const docW = Math.max(14, Math.min(85, 95 / alt));
         const docH = docW * 0.65;
         omniCtx.fillStyle = '#fef08a';
         omniCtx.strokeStyle = '#b45309';
@@ -1437,44 +1532,115 @@ function renderSpacelandOmniView(): void {
         omniCtx.fillRect(cabCenter.x - docW / 2, cabCenter.y - docH / 2, docW, docH);
         omniCtx.strokeRect(cabCenter.x - docW / 2, cabCenter.y - docH / 2, docW, docH);
 
-        omniCtx.font = 'bold 10px serif';
-        omniCtx.fillStyle = '#b45309';
-        omniCtx.textAlign = 'center';
-        omniCtx.fillText('【反锁铁箱 · 内部绝密手稿】', cabCenter.x, cabCenter.y - docH / 2 - 8);
+        // 低空特写时展示手稿维多利亚大字墨迹
+        if (alt <= 2.2) {
+          omniCtx.font = 'bold 9px serif';
+          omniCtx.fillStyle = '#b45309';
+          omniCtx.textAlign = 'center';
+          omniCtx.fillText('“一切闭合之物，', cabCenter.x, cabCenter.y - 3);
+          omniCtx.fillText('于高维皆为洞开”', cabCenter.x, cabCenter.y + 8);
+        } else {
+          omniCtx.font = 'bold 9px serif';
+          omniCtx.fillStyle = '#b45309';
+          omniCtx.textAlign = 'center';
+          omniCtx.fillText('【绝密手稿】', cabCenter.x, cabCenter.y + 3);
+        }
       }
     }
 
-    // 5. 俯视视角下的【同胞五脏六腑与红宝石心室透视】
+    // 6. 导师球体（在地面投下逼真椭圆阴影，并在空中发光漂浮）
+    const sp = spacelandGame.sphere;
+    const shadowCenter = project3DDownward(sp.x, sp.y, 0, camX, camY, camZ, 0, w, h);
+    if (shadowCenter.visible) {
+      const shR = Math.max(10, Math.min(50, (sp.radius3D * 120) / alt));
+      omniCtx.fillStyle = 'rgba(0, 0, 0, 0.42)';
+      omniCtx.beginPath();
+      omniCtx.ellipse(shadowCenter.x, shadowCenter.y, shR * 1.25, shR * 0.75, 0, 0, Math.PI * 2);
+      omniCtx.fill();
+    }
+
+    const spZ = sp.z + 1.2;
+    const spPt = project3DDownward(sp.x, sp.y, spZ, camX, camY, camZ, 0, w, h);
+    if (spPt.visible) {
+      const spR = Math.max(14, Math.min(65, (sp.radius3D * 140) / spPt.depth));
+      const sGrad = omniCtx.createRadialGradient(spPt.x - spR * 0.35, spPt.y - spR * 0.35, 2, spPt.x, spPt.y, spR);
+      sGrad.addColorStop(0, '#ffffff');
+      sGrad.addColorStop(0.3, '#fef08a');
+      sGrad.addColorStop(0.8, '#d97706');
+      sGrad.addColorStop(1, 'rgba(120, 53, 15, 0.28)');
+      omniCtx.fillStyle = sGrad;
+      omniCtx.beginPath();
+      omniCtx.arc(spPt.x, spPt.y, spR, 0, Math.PI * 2);
+      omniCtx.fill();
+
+      omniCtx.strokeStyle = '#facc15';
+      omniCtx.lineWidth = 1.8;
+      omniCtx.stroke();
+
+      omniCtx.strokeStyle = 'rgba(254, 240, 138, 0.7)';
+      omniCtx.lineWidth = 1.2;
+      omniCtx.beginPath();
+      omniCtx.ellipse(spPt.x, spPt.y, spR * 1.4, spR * 0.45, Math.PI / 8, 0, Math.PI * 2);
+      omniCtx.stroke();
+
+      omniCtx.font = 'bold 9.5px serif';
+      omniCtx.fillStyle = '#fef08a';
+      omniCtx.textAlign = 'center';
+      omniCtx.fillText('【天界球体导师】', spPt.x, spPt.y - spR - 6);
+    }
+
+    // 7. 漫步市民（6 位多阶层几何市民，高维内脏全知透视与红宝石跳动心脏）
     for (const c of spacelandGame.citizens) {
-      const cp = project3DDownward(c.x, c.y, 0, camX, camY, camZ, camAngle, w, h);
+      const cp = project3DDownward(c.x, c.y, 0, camX, camY, camZ, 0, w, h);
       if (!cp.visible) continue;
 
-      const scaleF = Math.max(6, 65 / cp.depth);
+      const scaleF = Math.max(6, Math.min(48, 65 / alt));
 
-      omniCtx.strokeStyle = 'rgba(203, 213, 225, 0.7)';
-      omniCtx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+      // 半透明晶体外壳
+      omniCtx.strokeStyle = 'rgba(226, 232, 240, 0.82)';
+      omniCtx.fillStyle = 'rgba(255, 255, 255, 0.26)';
       omniCtx.lineWidth = 1.5;
       omniCtx.beginPath();
       if (c.type === 'triangle') {
         omniCtx.moveTo(cp.x, cp.y - scaleF);
-        omniCtx.lineTo(cp.x + scaleF * 0.9, cp.y + scaleF * 0.7);
-        omniCtx.lineTo(cp.x - scaleF * 0.9, cp.y + scaleF * 0.7);
+        omniCtx.lineTo(cp.x + scaleF * 0.88, cp.y + scaleF * 0.65);
+        omniCtx.lineTo(cp.x - scaleF * 0.88, cp.y + scaleF * 0.65);
         omniCtx.closePath();
       } else if (c.type === 'isosceles') {
         omniCtx.moveTo(cp.x, cp.y - scaleF * 1.5);
-        omniCtx.lineTo(cp.x + scaleF * 0.5, cp.y + scaleF * 0.7);
-        omniCtx.lineTo(cp.x - scaleF * 0.5, cp.y + scaleF * 0.7);
+        omniCtx.lineTo(cp.x + scaleF * 0.45, cp.y + scaleF * 0.65);
+        omniCtx.lineTo(cp.x - scaleF * 0.45, cp.y + scaleF * 0.65);
+        omniCtx.closePath();
+      } else if (c.type === 'pentagon') {
+        for (let a = 0; a < 5; a++) {
+          const ang = -Math.PI / 2 + (a * 2 * Math.PI) / 5;
+          const px = cp.x + Math.cos(ang) * scaleF * 0.95;
+          const py = cp.y + Math.sin(ang) * scaleF * 0.95;
+          if (a === 0) omniCtx.moveTo(px, py);
+          else omniCtx.lineTo(px, py);
+        }
         omniCtx.closePath();
       } else {
-        omniCtx.rect(cp.x - scaleF * 0.8, cp.y - scaleF * 0.8, scaleF * 1.6, scaleF * 1.6);
+        omniCtx.rect(cp.x - scaleF * 0.75, cp.y - scaleF * 0.75, scaleF * 1.5, scaleF * 1.5);
       }
       omniCtx.fill();
       omniCtx.stroke();
 
-      // 内部跳动的红宝石心脏
+      // 胸腔内部：红宝石跳动心脏 (Ruby Core)
       const pulse = 1.0 + Math.sin(c.organPulsePhase) * 0.35;
       const heartSize = scaleF * 0.45 * pulse;
 
+      // 心脏舒张时向外扩散的微光波
+      const hGrad = omniCtx.createRadialGradient(cp.x, cp.y, 2, cp.x, cp.y, heartSize * 1.8);
+      hGrad.addColorStop(0, '#f43f5e');
+      hGrad.addColorStop(0.6, 'rgba(225, 29, 72, 0.45)');
+      hGrad.addColorStop(1, 'rgba(225, 29, 72, 0)');
+      omniCtx.fillStyle = hGrad;
+      omniCtx.beginPath();
+      omniCtx.arc(cp.x, cp.y, heartSize * 1.8, 0, Math.PI * 2);
+      omniCtx.fill();
+
+      // 心脏本体
       omniCtx.fillStyle = '#e11d48';
       omniCtx.beginPath();
       omniCtx.moveTo(cp.x, cp.y - heartSize);
@@ -1484,64 +1650,50 @@ function renderSpacelandOmniView(): void {
       omniCtx.closePath();
       omniCtx.fill();
 
-      // 消化脏器
+      // 金色主动脉分支与消化器官
       omniCtx.strokeStyle = '#d97706';
-      omniCtx.lineWidth = 1.2;
-      omniCtx.strokeRect(cp.x - heartSize * 0.7, cp.y - heartSize * 0.7, heartSize * 1.4, heartSize * 1.4);
+      omniCtx.lineWidth = 1.0;
+      omniCtx.strokeRect(cp.x - heartSize * 0.65, cp.y - heartSize * 0.65, heartSize * 1.3, heartSize * 1.3);
 
-      omniCtx.font = 'bold 9.5px serif';
+      omniCtx.font = 'bold 9px serif';
       omniCtx.fillStyle = '#f43f5e';
       omniCtx.textAlign = 'center';
-      omniCtx.fillText(`${c.name}·心室搏动`, cp.x, cp.y - scaleF - 8);
+      omniCtx.fillText(`${c.name}·心室搏动`, cp.x, cp.y - scaleF - 6);
     }
 
-    // 6. 三维空间中的【球体导师】
-    const sp = spacelandGame.sphere;
-    const spPt = project3DDownward(sp.x, sp.y, sp.z + 0.8, camX, camY, camZ, camAngle, w, h);
-    if (spPt.visible) {
-      const spR = Math.max(14, (sp.radius3D * 300) / spPt.depth);
-      const sGrad = omniCtx.createRadialGradient(spPt.x - spR * 0.3, spPt.y - spR * 0.3, 2, spPt.x, spPt.y, spR);
-      sGrad.addColorStop(0, '#ffffff');
-      sGrad.addColorStop(0.35, '#fef08a');
-      sGrad.addColorStop(0.85, '#ca8a04');
-      sGrad.addColorStop(1, 'rgba(120, 53, 15, 0.25)');
-
-      omniCtx.fillStyle = sGrad;
-      omniCtx.beginPath();
-      omniCtx.arc(spPt.x, spPt.y, spR, 0, Math.PI * 2);
-      omniCtx.fill();
-
+    // 8. 正方形自身拔离纸面飞升动画（升维瞬间光柱与脱离印痕）
+    if (spacelandGame.isDetaching) {
+      const p = project3DDownward(camX, camY, 0, camX, camY, camZ, 0, w, h);
       omniCtx.strokeStyle = '#facc15';
-      omniCtx.lineWidth = 2.0;
-      omniCtx.stroke();
+      omniCtx.lineWidth = 2.5;
+      omniCtx.strokeRect(p.x - 24, p.y - 24, 48, 48);
 
-      omniCtx.strokeStyle = 'rgba(254, 240, 138, 0.75)';
-      omniCtx.lineWidth = 1.2;
+      const auraGrad = omniCtx.createRadialGradient(p.x, p.y, 10, p.x, p.y, 80);
+      auraGrad.addColorStop(0, 'rgba(254, 240, 138, 0.75)');
+      auraGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
+      omniCtx.fillStyle = auraGrad;
       omniCtx.beginPath();
-      omniCtx.ellipse(spPt.x, spPt.y, spR * 1.35, spR * 0.45, Math.PI / 6, 0, Math.PI * 2);
-      omniCtx.stroke();
-
-      omniCtx.font = 'bold 10px serif';
-      omniCtx.fillStyle = '#fef08a';
-      omniCtx.textAlign = 'center';
-      omniCtx.fillText('【天界球体导师】', spPt.x, spPt.y - spR - 8);
+      omniCtx.arc(p.x, p.y, 80, 0, Math.PI * 2);
+      omniCtx.fill();
     }
 
-    // 7. 顶部高程仪表横幅
-    omniCtx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    // 9. 维多利亚古典机械高度计与全知仪表盘（HUD）
+    omniCtx.fillStyle = 'rgba(15, 23, 42, 0.92)';
     omniCtx.strokeStyle = '#8c6d3b';
-    omniCtx.lineWidth = 1.2;
-    omniCtx.fillRect(6, 6, w - 12, 24);
-    omniCtx.strokeRect(6, 6, w - 12, 24);
+    omniCtx.lineWidth = 1.4;
+    omniCtx.fillRect(6, 6, w - 12, 28);
+    omniCtx.strokeRect(6, 6, w - 12, 28);
 
     omniCtx.font = 'bold 10px serif';
     omniCtx.fillStyle = '#fef08a';
     omniCtx.textAlign = 'left';
-    omniCtx.fillText(`【三维第一人称俯瞰】悬浮高度 Z: ${alt.toFixed(1)} 空间单位`, 14, 22);
+    omniCtx.fillText(`【三维俯视】海拔 Z: ${alt.toFixed(1)} 英尺`, 14, 23);
 
     omniCtx.textAlign = 'right';
-    const viewHint = alt > 6.0 ? '大都市全景俯瞰' : alt >= 2.5 ? '书房与密室俯视' : '手稿与心室特写';
-    omniCtx.fillText(`视角: ${viewHint}`, w - 14, 22);
+    let viewHint = '【中空密室俯视】四壁如槽 · 铁箱洞开';
+    if (alt > 5.0) viewHint = '【高空广域鸟瞰】万家无顶 · 众生心室齐跳';
+    else if (alt <= 1.8) viewHint = '【近空微距特写】手稿字迹 · 心室瓣膜毕现';
+    omniCtx.fillText(viewHint, w - 14, 23);
 
     return;
   }
