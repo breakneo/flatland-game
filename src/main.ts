@@ -139,9 +139,21 @@ function handleSpecialAction(): void {
 
 btnAscend.addEventListener('click', handleSpecialAction);
 
+// 弹窗状态管理：INTRO(开场背景) | VICTORY(通关手稿) | DEFEATED(身死残局)
+type ModalMode = 'INTRO' | 'VICTORY' | 'DEFEATED' | 'NONE';
+let currentModalMode: ModalMode = 'INTRO';
+
+function showIntroManuscript(): void {
+  currentModalMode = 'INTRO';
+  modalOverlay.classList.add('active');
+  const intro = coordinator.introManuscript;
+  modalTitle.textContent = intro.title;
+  modalBody.textContent = intro.body;
+  btnModalAction.textContent = intro.btnText;
+}
+
 // 关卡流转与重置
 function resetCurrentLevel(): void {
-  modalOverlay.classList.remove('active');
   coordinator.resetCurrentLevel();
   hasTriggeredSphereEpiphany = false;
   for (const f of fragments) f.collected = false;
@@ -155,23 +167,32 @@ function resetCurrentLevel(): void {
 }
 
 function toggleLevel(): void {
-  modalOverlay.classList.remove('active');
   const nextId = coordinator.currentLevelId === GameLevelId.LINELAND_PROLOGUE
     ? GameLevelId.FLATLAND_ESCAPE
     : GameLevelId.LINELAND_PROLOGUE;
   coordinator.switchLevel(nextId);
   resetCurrentLevel();
+  showIntroManuscript();
 }
 
 btnLevelToggle.addEventListener('click', toggleLevel);
-btnQuickReset.addEventListener('click', resetCurrentLevel);
+btnQuickReset.addEventListener('click', () => {
+  resetCurrentLevel();
+  showIntroManuscript();
+});
 
 btnModalAction.addEventListener('click', () => {
   modalOverlay.classList.remove('active');
-  if (coordinator.isLevelCompleted) {
+  if (currentModalMode === 'INTRO') {
+    currentModalMode = 'NONE';
+    // 玩家已了解背景，正式开启行动
+  } else if (currentModalMode === 'VICTORY') {
+    currentModalMode = 'NONE';
     coordinator.advanceToNextLevel();
     resetCurrentLevel();
+    showIntroManuscript(); // 紧接着展示新关卡的开场背景手稿！
   } else {
+    currentModalMode = 'NONE';
     resetCurrentLevel();
   }
 });
@@ -184,6 +205,7 @@ function updateLevelHeaderUI(): void {
 }
 
 updateLevelHeaderUI();
+showIntroManuscript();
 
 // 主循环
 let lastTime = performance.now();
@@ -194,10 +216,12 @@ function gameLoop(now: number): void {
 
   let forward = 0;
   let turn = 0;
-  if (keys['w'] || keys['arrowup']) forward += 1;
-  if (keys['s'] || keys['arrowdown']) forward -= 1;
-  if (keys['a'] || keys['arrowleft']) turn -= 1;
-  if (keys['d'] || keys['arrowright']) turn += 1;
+  if (currentModalMode === 'NONE') {
+    if (keys['w'] || keys['arrowup']) forward += 1;
+    if (keys['s'] || keys['arrowdown']) forward -= 1;
+    if (keys['a'] || keys['arrowleft']) turn -= 1;
+    if (keys['d'] || keys['arrowright']) turn += 1;
+  }
 
   if (coordinator.currentLevelId === GameLevelId.LINELAND_PROLOGUE) {
     // -------------------------------------------------------------
@@ -262,12 +286,14 @@ function gameLoop(now: number): void {
 
     // 结算判定
     if (lineland.gameState === 'VICTORY' && !modalOverlay.classList.contains('active')) {
+      currentModalMode = 'VICTORY';
       modalOverlay.classList.add('active');
       const ms = coordinator.completionManuscript;
       modalTitle.textContent = ms.title;
       modalBody.textContent = ms.body;
       btnModalAction.textContent = ms.nextBtnText;
     } else if (lineland.gameState === 'DEFEATED' && !modalOverlay.classList.contains('active')) {
+      currentModalMode = 'DEFEATED';
       modalOverlay.classList.add('active');
       modalTitle.textContent = '梦境幻灭 · 被刺解体';
       modalBody.textContent = '“你在前后两端极其狭窄的线段挤压下被两端刺穿。请重新闭目凝神，在前后死锁的一刹那向侧面迈步！”';
@@ -281,7 +307,9 @@ function gameLoop(now: number): void {
     // -------------------------------------------------------------
     // 第一幕：平面国石牢脱逃逻辑更新
     // -------------------------------------------------------------
-    escapeGame.movePlayer(forward, turn, dt);
+    if (currentModalMode === 'NONE') {
+      escapeGame.movePlayer(forward, turn, dt);
+    }
 
     for (let i = 0; i < fragments.length; i++) {
       const f = fragments[i];
@@ -323,12 +351,14 @@ function gameLoop(now: number): void {
     }
 
     if (escapeGame.gameState === 'VICTORY' && !modalOverlay.classList.contains('active')) {
+      currentModalMode = 'VICTORY';
       modalOverlay.classList.add('active');
       const ms = coordinator.completionManuscript;
       modalTitle.textContent = ms.title;
       modalBody.textContent = ms.body;
       btnModalAction.textContent = ms.nextBtnText;
     } else if (escapeGame.gameState === 'DEFEATED' && !modalOverlay.classList.contains('active')) {
+      currentModalMode = 'DEFEATED';
       modalOverlay.classList.add('active');
       modalTitle.textContent = '身死道消 · 刺杀残局';
       modalBody.textContent = escapeGame.defeatManuscript;
@@ -575,9 +605,9 @@ function renderLinelandOmniView(): void {
   omniCtx.fillStyle = '#3e2c14';
   omniCtx.textAlign = 'center';
   if (lineland.isSidestepping) {
-    omniCtx.fillText('正方形绅士 · 跨越一维', pMid.x - v.x * 16, pMid.y - v.y * 16);
+    omniCtx.fillText('我（跨越一维）', pMid.x - v.x * 18, pMid.y - v.y * 18);
   } else {
-    omniCtx.fillText('正方形绅士', pMid.x - v.x * 16, pMid.y - v.y * 16);
+    omniCtx.fillText('我（正方形截面）', pMid.x - v.x * 18, pMid.y - v.y * 18);
   }
 }
 
