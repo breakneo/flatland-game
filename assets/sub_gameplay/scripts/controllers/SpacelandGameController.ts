@@ -60,7 +60,7 @@ function rayCircleIntersect(
 
 export interface SpacelandCitizen {
   id: string;
-  type: 'triangle' | 'isosceles' | 'square' | 'pentagon';
+  type: 'triangle' | 'isosceles' | 'square' | 'pentagon' | 'hexagon' | 'circle';
   name: string;
   x: number;
   y: number;
@@ -79,13 +79,13 @@ export class SpacelandGameController {
   public player = {
     x: -2.0,
     y: 0,
-    angle: 0, // 面向正东 (+X 方向，朝向前方面闭铁箱)
+    angle: 0, // 朝向角度 (Yaw)
     size: 1.2,
   };
 
   public juice: JuiceController;
 
-  // 书房外墙边界
+  // 书房外墙边界（二维严格矩形平面）
   public studyWalls = {
     minX: -3.8,
     maxX: 3.8,
@@ -93,14 +93,14 @@ export class SpacelandGameController {
     maxY: 3.0,
   };
 
-  // 书房前方的反锁密闭铁箱（四面严密封闭，内部锁着手稿）
+  // 书房前方的反锁密闭铁箱（二维严格闭合矩形，内部锁着手稿）
   public cabinet = {
     x: 1.8,
     y: 0,
     halfSize: 0.7,
   };
 
-  // 三维球体导师：位于书房西南角 (x = -1.8, y = -1.2)，在 Z 轴上下穿行
+  // 三维球体导师：位于书房西南角，在 Z 轴上下穿行
   public sphere = {
     x: -1.8,
     y: -1.2,
@@ -114,7 +114,7 @@ export class SpacelandGameController {
 
   public altitude: number = 0;
   public minAltitude: number = 0.6;
-  public maxAltitude: number = 12.0;
+  public maxAltitude: number = 16.0;
   public isAutoAscending: boolean = true;
   public isDetaching: boolean = false;
   public detachProgress: number = 0;
@@ -173,6 +173,19 @@ export class SpacelandGameController {
       organPulsePhase: 0.9,
     },
     {
+      id: 'guard_garrison',
+      type: 'isosceles',
+      name: '西方大校场宪兵',
+      x: -12.5,
+      y: 1.2,
+      vx: 0,
+      vy: 1.8,
+      minPos: -6.0,
+      maxPos: 6.0,
+      axis: 'y',
+      organPulsePhase: 1.2,
+    },
+    {
       id: 'scholar_square',
       type: 'square',
       name: '正方形学者同侪',
@@ -197,6 +210,32 @@ export class SpacelandGameController {
       maxPos: 5.0,
       axis: 'x',
       organPulsePhase: 4.1,
+    },
+    {
+      id: 'senator_hexagon',
+      type: 'hexagon',
+      name: '六边形大参议员',
+      x: 10.5,
+      y: 8.5,
+      vx: -0.8,
+      vy: 0,
+      minPos: 6.0,
+      maxPos: 15.0,
+      axis: 'x',
+      organPulsePhase: 2.1,
+    },
+    {
+      id: 'council_circle',
+      type: 'circle',
+      name: '北方大议会圆大祭司',
+      x: 0,
+      y: 11.2,
+      vx: 0.6,
+      vy: 0,
+      minPos: -4.0,
+      maxPos: 4.0,
+      axis: 'x',
+      organPulsePhase: 5.0,
     },
   ];
 
