@@ -22,6 +22,27 @@ export class PatrolAgent {
     this.pos = { x: waypoints[0].x, y: waypoints[0].y };
     this.currentWaypointIndex = waypoints.length > 1 ? 1 : 0;
 
+    if (waypoints.length > 1) {
+      const dx = waypoints[1].x - waypoints[0].x;
+      const dy = waypoints[1].y - waypoints[0].y;
+      this.heading = Math.atan2(dy, dx);
+    } else {
+      this.heading = 0;
+    }
+
+    this.triangle = this.calculateTriangle();
+  }
+
+  public reset(): void {
+    this.pos = { x: this.waypoints[0].x, y: this.waypoints[0].y };
+    this.currentWaypointIndex = this.waypoints.length > 1 ? 1 : 0;
+    if (this.waypoints.length > 1) {
+      const dx = this.waypoints[1].x - this.waypoints[0].x;
+      const dy = this.waypoints[1].y - this.waypoints[0].y;
+      this.heading = Math.atan2(dy, dx);
+    } else {
+      this.heading = 0;
+    }
     this.triangle = this.calculateTriangle();
   }
 
@@ -73,7 +94,8 @@ export class PatrolAgent {
   public update(
     dt: number,
     targetPos: Point2D,
-    isTargetAscended: boolean
+    isTargetAscended: boolean,
+    targetAngle: number = 0
   ): { isColliding: boolean; isNearMiss: boolean } {
     const targetWp = this.waypoints[this.currentWaypointIndex];
     const dx = targetWp.x - this.pos.x;
@@ -97,7 +119,7 @@ export class PatrolAgent {
       return { isColliding: false, isNearMiss: false };
     }
 
-    const isColliding = checkSquareTriangleCollision(targetPos, 1.0, this.triangle);
+    const isColliding = checkSquareTriangleCollision(targetPos, 1.0, this.triangle, targetAngle);
     const nearMissDist = getNearMissDistance(targetPos, this.triangle);
     const isNearMiss = !isColliding && nearMissDist <= 1.5;
 

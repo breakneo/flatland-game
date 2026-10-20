@@ -30,21 +30,37 @@ function isSeparatedOnAxis(v1: Point2D[], v2: Point2D[], axis: Point2D): boolean
   return max1 < min2 || max2 < min1;
 }
 
+export function getSquareVertices(
+  squareCenter: Point2D,
+  squareSize: number,
+  angle: number = 0
+): Point2D[] {
+  const half = squareSize / 2;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const localOffsets = [
+    { x: -half, y: -half },
+    { x: half, y: -half },
+    { x: half, y: half },
+    { x: -half, y: half },
+  ];
+
+  return localOffsets.map((pt) => ({
+    x: squareCenter.x + (pt.x * cos - pt.y * sin),
+    y: squareCenter.y + (pt.x * sin + pt.y * cos),
+  }));
+}
+
 /**
  * Checks lethal collision between a square player and an isosceles triangle using SAT.
  */
 export function checkSquareTriangleCollision(
   squareCenter: Point2D,
   squareSize: number,
-  triangle: IsoscelesTriangle
+  triangle: IsoscelesTriangle,
+  angle: number = 0
 ): boolean {
-  const half = squareSize / 2;
-  const squareVertices: Point2D[] = [
-    { x: squareCenter.x - half, y: squareCenter.y - half },
-    { x: squareCenter.x + half, y: squareCenter.y - half },
-    { x: squareCenter.x + half, y: squareCenter.y + half },
-    { x: squareCenter.x - half, y: squareCenter.y + half },
-  ];
+  const squareVertices = getSquareVertices(squareCenter, squareSize, angle);
 
   const triVertices: Point2D[] = [
     triangle.apex,

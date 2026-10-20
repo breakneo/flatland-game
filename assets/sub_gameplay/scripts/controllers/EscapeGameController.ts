@@ -9,7 +9,7 @@ export type GameState = 'PLAYING' | 'VICTORY' | 'DEFEATED';
 export class EscapeGameController {
   public gameState: GameState = 'PLAYING';
   public player: { x: number; y: number; angle: number; size: number } = {
-    x: 0,
+    x: -4.8,
     y: 0,
     angle: 0,
     size: 1.0,
@@ -47,18 +47,23 @@ export class EscapeGameController {
     this.ascensionFSM = new AscensionFSM();
     this.juice = new JuiceController();
 
-    // 2 Isosceles patrol soldiers inside the stone room
+    // 3 Isosceles patrol soldiers with clear corridor routines away from spawn zone (-4.8, 0)
     this.patrols = [
+      // South corridor guard
       new PatrolAgent([
-        { x: -4, y: -4 },
-        { x: 4, y: -4 },
-        { x: 4, y: 4 },
-        { x: -4, y: 4 },
-      ], 2.2),
+        { x: -1.5, y: -3.5 },
+        { x: 3.5, y: -3.5 },
+      ], 1.6),
+      // North corridor guard
       new PatrolAgent([
-        { x: 3, y: 3 },
-        { x: -3, y: -3 },
-      ], 1.8),
+        { x: 3.5, y: 3.5 },
+        { x: -1.5, y: 3.5 },
+      ], 1.6),
+      // East gate sentry
+      new PatrolAgent([
+        { x: 4.8, y: -2.5 },
+        { x: 4.8, y: 2.5 },
+      ], 1.4),
     ];
   }
 
@@ -95,9 +100,12 @@ export class EscapeGameController {
 
   public reset(): void {
     this.gameState = 'PLAYING';
-    this.player = { x: 0, y: 0, angle: 0, size: 1.0 };
+    this.player = { x: -4.8, y: 0, angle: 0, size: 1.0 };
     this.ascensionFSM = new AscensionFSM();
     this.juice = new JuiceController();
+    for (const patrol of this.patrols) {
+      patrol.reset();
+    }
   }
 
   public movePlayer(forward: number, turn: number, dt: number): void {
@@ -138,7 +146,7 @@ export class EscapeGameController {
     if (!juiceState.isFrozen) {
       // Update patrol agents and test collisions only when not frozen
       for (const patrol of this.patrols) {
-        const res = patrol.update(dt, playerPt, this.isAscended);
+        const res = patrol.update(dt, playerPt, this.isAscended, this.player.angle);
         if (res.isColliding) {
           this.gameState = 'DEFEATED';
           this.juice.addTrauma(1.0);

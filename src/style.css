@@ -54,10 +54,26 @@ body {
   background: var(--parchment-dark);
 }
 
-.chapter-title {
-  font-size: 0.95rem;
+.character-identity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
   font-weight: bold;
-  letter-spacing: 1px;
+  color: var(--ink);
+  letter-spacing: 0.5px;
+}
+
+.square-badge {
+  display: inline-block;
+  color: #1a2634;
+  font-size: 0.95rem;
+  text-shadow: 0 0 2px var(--brass-light);
+}
+
+.identity-text {
+  border-left: 2px solid var(--brass);
+  padding-left: 6px;
 }
 
 .oracle-gauge-wrapper {
