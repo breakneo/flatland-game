@@ -26,6 +26,7 @@ export class EscapeGameController {
   public patrols: PatrolAgent[] = [];
   public ascensionFSM: AscensionFSM;
   public juice: JuiceController;
+  private nearMissCooldown: number = 0;
 
   public victoryManuscript: string = `
 【手稿·第一卷·密室的虚妄】
@@ -84,10 +85,10 @@ export class EscapeGameController {
   }
 
   public requestAscension(): boolean {
-    const success = this.ascensionFSM.triggerAscend(3.5);
+    const success = this.ascensionFSM.triggerAscend(7.0); // 延长至 7.0 秒滞空时间，从容翻墙
     if (success) {
-      // Trigger dramatic screen shake and hit stop
-      this.juice.addTrauma(0.9);
+      // 升维轻微顿挫震动
+      this.juice.addTrauma(0.35);
       this.juice.triggerHitStop(80);
     }
     return success;
@@ -103,6 +104,7 @@ export class EscapeGameController {
     this.player = { x: -4.8, y: 0, angle: 0, size: 1.0 };
     this.ascensionFSM = new AscensionFSM();
     this.juice = new JuiceController();
+    this.nearMissCooldown = 0;
     for (const patrol of this.patrols) {
       patrol.reset();
     }
@@ -113,7 +115,8 @@ export class EscapeGameController {
 
     this.player.angle += turn * 2.5 * dt;
 
-    const moveSpeed = 4.0;
+    // 升维后在三维空间中翱翔，移动速度提升至 6.0，二维平面为 4.0
+    const moveSpeed = this.isAscended ? 6.0 : 4.0;
     const dx = Math.cos(this.player.angle) * forward * moveSpeed * dt;
     const dy = Math.sin(this.player.angle) * forward * moveSpeed * dt;
 
@@ -140,6 +143,11 @@ export class EscapeGameController {
 
     this.ascensionFSM.update(dt);
 
+    // 自然冥想蓄力：若已落回二维且能量不足，每秒缓慢蓄力 3 点心智，杜绝卡关死局
+    if (!this.isAscended && this.ascensionFSM.energy < 100) {
+      this.ascensionFSM.chargeEnergy(3.5 * dt);
+    }
+
     let hasNearMiss = false;
     const playerPt: Point2D = { x: this.player.x, y: this.player.y };
 
@@ -149,7 +157,7 @@ export class EscapeGameController {
         const res = patrol.update(dt, playerPt, this.isAscended, this.player.angle);
         if (res.isColliding) {
           this.gameState = 'DEFEATED';
-          this.juice.addTrauma(1.0);
+          this.juice.addTrauma(0.7);
           this.juice.triggerHitStop(150);
           return { isNearMiss: false, isFrozen: false };
         }
@@ -159,8 +167,14 @@ export class EscapeGameController {
       }
     }
 
-    if (hasNearMiss) {
-      this.juice.addTrauma(0.15);
+    if (this.nearMissCooldown > 0) {
+      this.nearMissCooldown -= dt;
+    }
+
+    // 险避心跳震动防抖：加入 0.5s 冷却，且仅产生轻微脉冲（0.06），拒绝晃动晕眩
+    if (hasNearMiss && this.nearMissCooldown <= 0) {
+      this.juice.addTrauma(0.06);
+      this.nearMissCooldown = 0.5;
     }
 
     // Check exit reach condition

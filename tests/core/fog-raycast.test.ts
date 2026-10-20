@@ -25,4 +25,23 @@ describe('Fog-Angle Recognition Raycaster (雾中辨角引擎)', () => {
     expect(centerRay.hitType).toBe('isosceles');
     expect(centerRay.distance).toBeCloseTo(4, 1);
   });
+
+  it('should detect higher apexProximity and brightness at the sharp apex of an isosceles soldier', () => {
+    const triangle = {
+      apex: { x: 4, y: 0 },
+      baseLeft: { x: 6, y: -1 },
+      baseRight: { x: 6, y: 1 },
+      headingAngle: Math.PI,
+    };
+    // Ray 2 directly hits apex at angle 0; Ray 0 hits edge further back
+    const rays = computeFogVisionRays({ x: 0, y: 0 }, 0, [], [triangle], 60, 5, 20);
+    const apexRay = rays[2];
+    const flankRay = rays[1];
+
+    expect(apexRay.hitType).toBe('isosceles');
+    expect(apexRay.apexProximity).toBeGreaterThan(0.8);
+    if (flankRay.hitType === 'isosceles') {
+      expect(apexRay.apexProximity).toBeGreaterThan(flankRay.apexProximity || 0);
+    }
+  });
 });

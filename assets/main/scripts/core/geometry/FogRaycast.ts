@@ -6,6 +6,7 @@ export interface FogRayHit {
   brightness: number;
   hitType: 'wall' | 'isosceles' | 'exit';
   color: string;
+  apexProximity?: number;
 }
 
 export interface WallSegment {
@@ -82,6 +83,7 @@ export function computeFogVisionRays(
     }
 
     // 2. Raycast against isosceles triangle perimeters
+    let hitApexDist = Infinity;
     for (const tri of triangles) {
       const edges = [
         { p1: tri.apex, p2: tri.baseLeft },
@@ -94,18 +96,27 @@ export function computeFogVisionRays(
           closestT = t;
           closestType = 'isosceles';
           closestColor = '#8b1e1e'; // Blood crimson for isosceles soldiers
+
+          const hitX = origin.x + dx * t;
+          const hitY = origin.y + dy * t;
+          hitApexDist = Math.hypot(hitX - tri.apex.x, hitY - tri.apex.y);
         }
       }
     }
 
     if (closestT < Infinity && closestT <= maxDist) {
       const brightness = Math.max(0, Math.min(1, 1 - closestT / maxDist));
+      const apexProximity = closestType === 'isosceles'
+        ? Math.max(0, Math.min(1, 1 - hitApexDist / 1.2))
+        : 0;
+
       results.push({
         angleOffset,
         distance: closestT,
         brightness,
         hitType: closestType,
         color: closestColor,
+        apexProximity,
       });
     } else {
       results.push({
@@ -114,6 +125,7 @@ export function computeFogVisionRays(
         brightness: 0,
         hitType: 'wall',
         color: '#1a1611',
+        apexProximity: 0,
       });
     }
   }
