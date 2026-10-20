@@ -9,20 +9,20 @@ export type GameState = 'PLAYING' | 'VICTORY' | 'DEFEATED';
 export class EscapeGameController {
   public gameState: GameState = 'PLAYING';
   public player: { x: number; y: number; angle: number; size: number } = {
-    x: -4.2,
+    x: -3.8,
     y: 0,
     angle: 0,
     size: 1.2,
   };
 
   public walls: WallSegment[] = [
-    { x1: 5.8, y1: -5.8, x2: 5.8, y2: 5.8, color: '#1a1611' },
-    { x1: 5.8, y1: 5.8, x2: -5.8, y2: 5.8, color: '#1a1611' },
-    { x1: -5.8, y1: 5.8, x2: -5.8, y2: -5.8, color: '#1a1611' },
-    { x1: -5.8, y1: -5.8, x2: 5.8, y2: -5.8, color: '#1a1611' },
+    { x1: 5.2, y1: -5.2, x2: 5.2, y2: 5.2, color: '#1a1611' },
+    { x1: 5.2, y1: 5.2, x2: -5.2, y2: 5.2, color: '#1a1611' },
+    { x1: -5.2, y1: 5.2, x2: -5.2, y2: -5.2, color: '#1a1611' },
+    { x1: -5.2, y1: -5.2, x2: 5.2, y2: -5.2, color: '#1a1611' },
   ];
 
-  public exit: Point2D = { x: 9.6, y: 0 };
+  public exit: Point2D = { x: 7.8, y: 0 };
   public patrols: PatrolAgent[] = [];
   public ascensionFSM: AscensionFSM;
   public juice: JuiceController;
@@ -48,22 +48,22 @@ export class EscapeGameController {
     this.ascensionFSM = new AscensionFSM();
     this.juice = new JuiceController();
 
-    // 3 Isosceles patrol soldiers within [-5.2, 5.2] closed perimeter away from spawn (-4.2, 0)
+    // 3 Isosceles patrol soldiers within [-5.2, 5.2] closed perimeter away from spawn (-3.8, 0)
     this.patrols = [
       // South corridor guard
       new PatrolAgent([
-        { x: -1.0, y: -2.8 },
-        { x: 3.0, y: -2.8 },
+        { x: -0.8, y: -2.5 },
+        { x: 2.6, y: -2.5 },
       ], 1.6),
       // North corridor guard
       new PatrolAgent([
-        { x: 3.0, y: 2.8 },
-        { x: -1.0, y: 2.8 },
+        { x: 2.6, y: 2.5 },
+        { x: -0.8, y: 2.5 },
       ], 1.6),
       // East gate sentry
       new PatrolAgent([
-        { x: 4.2, y: -2.2 },
-        { x: 4.2, y: 2.2 },
+        { x: 3.8, y: -1.8 },
+        { x: 3.8, y: 1.8 },
       ], 1.4),
     ];
   }
@@ -95,13 +95,13 @@ export class EscapeGameController {
   }
 
   public teleportNearExit(): void {
-    this.player.x = 9.2;
+    this.player.x = 7.5;
     this.player.y = 0;
   }
 
   public reset(): void {
     this.gameState = 'PLAYING';
-    this.player = { x: -4.2, y: 0, angle: 0, size: 1.2 };
+    this.player = { x: -3.8, y: 0, angle: 0, size: 1.2 };
     this.ascensionFSM = new AscensionFSM();
     this.juice = new JuiceController();
     this.nearMissCooldown = 0;
@@ -123,10 +123,10 @@ export class EscapeGameController {
     const nextX = this.player.x + dx;
     const nextY = this.player.y + dy;
 
-    // In 2D mode, blocked by outer stone room boundaries [-5.2, 5.2] (完全封闭石墙，绝无漏洞)
+    // In 2D mode, blocked by outer stone room boundaries [-4.8, 4.8] (完全封闭石墙，绝无漏洞)
     if (!this.isAscended) {
-      if (Math.abs(nextX) < 5.2) this.player.x = nextX;
-      if (Math.abs(nextY) < 5.2) this.player.y = nextY;
+      if (Math.abs(nextX) < 4.8) this.player.x = nextX;
+      if (Math.abs(nextY) < 4.8) this.player.y = nextY;
     } else {
       // Ascended: freedom of flight over walls
       this.player.x = nextX;
